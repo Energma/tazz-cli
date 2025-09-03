@@ -1,0 +1,312 @@
+{
+  "mcpServers": {
+    "claude-task-master": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@eyaltoledano/claude-task-master"
+      ],
+      "env": {},
+      "autoApprove": [],
+      "disabled": false,
+      "timeout": 60,
+      "transportType": "stdio"
+    },
+    "github": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-github"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "your_github_token_here"
+      },
+      "autoApprove": [
+        "create_pull_request"
+      ],
+      "disabled": false,
+      "timeout": 60,
+      "transportType": "stdio"
+    },
+    "context7": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@upstash/context7-mcp"
+      ],
+      "env": {},
+      "autoApprove": [],
+      "disabled": false,
+      "timeout": 60,
+      "transportType": "stdio"
+    },
+    "playwright": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@executeautomation/playwright-mcp-server"
+      ],
+      "env": {},
+      "autoApprove": [],
+      "disabled": false,
+      "timeout": 60,
+      "transportType": "stdio"
+    },
+    "sequential-thinking": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-sequential-thinking"
+      ],
+      "env": {},
+      "autoApprove": [],
+      "disabled": false,
+      "timeout": 60,
+      "transportType": "stdio"
+    },
+    "atlassian": {
+      "command": "uvx",
+      "args": [
+        "mcp-atlassian",
+        "--confluence-url=https://your-company.atlassian.net/wiki",
+        "--confluence-username=your_username@company.com",
+        "--confluence-token=your_confluence_token",
+        "--jira-url=https://your-company.atlassian.net/",
+        "--jira-username=your_username@company.com",
+        "--jira-token=your_jira_token"
+      ],
+      "env": {},
+      "autoApprove": [
+        "jira_get_issue"
+      ],
+      "disabled": false,
+      "timeout": 60,
+      "transportType": "stdio"
+    },
+    "git": {
+      "command": "uvx",
+      "args": [
+        "mcp-server-git",
+        "--repository",
+        "/tmp/tazz-demo-app"
+      ],
+      "env": {},
+      "autoApprove": [],
+      "disabled": false,
+      "timeout": 60,
+      "transportType": "stdio"
+    },
+    "figma": {
+      "command": "npx",
+      "args": [
+        "figma-developer-mcp",
+        "--figma-api-key=your_figma_token",
+        "--stdio"
+      ],
+      "env": {},
+      "autoApprove": [
+        "get_figma_data"
+      ],
+      "disabled": false,
+      "timeout": 60,
+      "transportType": "stdio"
+    },
+    "fetch": {
+      "command": "uvx",
+      "args": [
+        "mcp-server-fetch"
+      ],
+      "env": {},
+      "autoApprove": [],
+      "disabled": false,
+      "timeout": 60,
+      "transportType": "stdio"
+    },
+    "mcp-installer": {
+      "command": "npx",
+      "args": [
+        "@anaisbetts/mcp-installer"
+      ],
+      "env": {},
+      "autoApprove": [],
+      "disabled": false,
+      "timeout": 60,
+      "transportType": "stdio"
+    },
+    "sonarcloud": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@sonarqube/sonar-scanner-cli"
+      ],
+      "env": {
+        "SONAR_TOKEN": "your_sonar_token"
+      },
+      "autoApprove": [
+        "scan_project",
+        "get_issues"
+      ],
+      "disabled": false,
+      "timeout": 120,
+      "transportType": "stdio"
+    }
+  },
+  "globalShortcuts": {
+    "toggle": "Cmd+Shift+C"
+  },
+  "statusLine": {
+    "enabled": true,
+    "position": "right"
+  },
+  "hooks": {
+    "tazz-session-start": {
+      "matcher": {
+        "toolName": "tazz",
+        "command": "start"
+      },
+      "script": "/tmp/tazz-tmp/projects/tmp_tazz_demo_app/hooks/session-start.sh"
+    },
+    "tazz-pre-tool": {
+      "matcher": {
+        "toolName": [
+          "Edit",
+          "Write",
+          "Bash"
+        ]
+      },
+      "script": "/tmp/tazz-tmp/projects/tmp_tazz_demo_app/hooks/pre-tool.sh"
+    },
+    "tazz-post-tool": {
+      "matcher": {
+        "toolName": "*"
+      },
+      "script": "/tmp/tazz-tmp/projects/tmp_tazz_demo_app/hooks/post-tool.sh"
+    },
+    "tazz-quality-gate": {
+      "matcher": {
+        "custom": "task-complete"
+      },
+      "script": "/tmp/tazz-tmp/projects/tmp_tazz_demo_app/hooks/quality-gate.sh"
+    },
+    "tazz-jira-integration": {
+      "matcher": {
+        "custom": "jira-ticket"
+      },
+      "script": "/tmp/tazz-tmp/projects/tmp_tazz_demo_app/hooks/jira-integration.sh"
+    }
+  },
+  "subAgents": {
+    "testing": {
+      "name": "Testing Specialist",
+      "description": "Expert in test automation, coverage, and quality assurance",
+      "tools": [
+        "Write",
+        "Edit",
+        "Bash",
+        "playwright",
+        "github"
+      ],
+      "capabilities": [
+        "Unit test creation and optimization",
+        "Integration test design",
+        "E2E test automation with Playwright",
+        "Test coverage analysis",
+        "CI/CD test pipeline setup"
+      ],
+      "rules": "/tmp/tazz-tmp/projects/tmp_tazz_demo_app/rules/testing.json",
+      "templates": "/tmp/tazz-tmp/projects/tmp_tazz_demo_app/templates/"
+    },
+    "architecture": {
+      "name": "Architecture Analyst",
+      "description": "System design, code structure, and technical debt analysis",
+      "tools": [
+        "Read",
+        "Glob",
+        "Grep",
+        "sonarcloud",
+        "context7"
+      ],
+      "capabilities": [
+        "Codebase architecture analysis",
+        "Design pattern recommendations",
+        "Technical debt assessment",
+        "Code quality metrics",
+        "Refactoring strategies"
+      ],
+      "rules": "/tmp/tazz-tmp/projects/tmp_tazz_demo_app/rules/code-style.json",
+      "analysis": "/tmp/tazz-tmp/projects/tmp_tazz_demo_app/analysis.json"
+    },
+    "devops": {
+      "name": "DevOps Engineer",
+      "description": "CI/CD, deployment, and infrastructure automation",
+      "tools": [
+        "Bash",
+        "Write",
+        "github",
+        "sonarcloud"
+      ],
+      "capabilities": [
+        "CI/CD pipeline optimization",
+        "Docker containerization",
+        "Build process automation",
+        "Quality gate enforcement",
+        "Deployment strategies"
+      ],
+      "rules": "/tmp/tazz-tmp/projects/tmp_tazz_demo_app/rules/git-workflow.json"
+    },
+    "frontend": {
+      "name": "Frontend Specialist",
+      "description": "UI/UX implementation and frontend optimization",
+      "tools": [
+        "Write",
+        "Edit",
+        "playwright",
+        "figma"
+      ],
+      "capabilities": [
+        "Component development",
+        "UI/UX implementation from Figma",
+        "Performance optimization",
+        "Accessibility compliance",
+        "Cross-browser testing"
+      ],
+      "rules": "/tmp/tazz-tmp/projects/tmp_tazz_demo_app/rules/code-style.json"
+    },
+    "backend": {
+      "name": "Backend Engineer",
+      "description": "API development, database design, and server-side logic",
+      "tools": [
+        "Write",
+        "Edit",
+        "Bash",
+        "github"
+      ],
+      "capabilities": [
+        "REST/GraphQL API development",
+        "Database schema design",
+        "Performance optimization",
+        "Security implementation",
+        "Integration patterns"
+      ],
+      "rules": "/tmp/tazz-tmp/projects/tmp_tazz_demo_app/rules/code-style.json"
+    },
+    "documentation": {
+      "name": "Technical Writer",
+      "description": "Documentation creation and maintenance",
+      "tools": [
+        "Write",
+        "Edit",
+        "Read",
+        "github"
+      ],
+      "capabilities": [
+        "API documentation",
+        "User guides and tutorials",
+        "Architecture documentation",
+        "README optimization",
+        "Code documentation"
+      ],
+      "templates": "/tmp/tazz-tmp/projects/tmp_tazz_demo_app/templates/"
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install)",
+      "Bash(npm run build:*)",
+      "Bash(node:*)",
+      "Bash(chmod:*)",
+      "Bash(npm link:*)",
+      "Bash(./bin/tazz:*)",
+      "Bash(git init:*)",
+      "Bash(npm install:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
