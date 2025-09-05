@@ -12,6 +12,6 @@ export default defineConfig({
   banner: {
     js: '#!/usr/bin/env node'
   },
-  outDir: 'dist',
+  outDir: 'bin',
   tsconfig: './tsconfig.json'
 })

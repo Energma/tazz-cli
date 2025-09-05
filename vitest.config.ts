@@ -15,7 +15,7 @@ export default defineConfig({
         }
       },
       exclude: [
-        'dist/**',
+        'bin/**',
         'tests/**',
         'src/cli/ui/tornado.ts', // Animation code
         'src/utils/logger.ts' // Logging utilities
@@ -25,6 +25,10 @@ export default defineConfig({
     testTimeout: 30000,
     globals: true,
     environment: 'node'
+  },
+  build: {
+    outDir: 'bin',
+    emptyOutDir: true,
   },
   resolve: {
     alias: {

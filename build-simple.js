@@ -8,7 +8,7 @@ esbuild.build({
   platform: 'node',
   target: 'node18',
   format: 'cjs',
-  outfile: 'dist/index.js',
+  outfile: 'bin/index.js',
   sourcemap: true,
   // Don't add shebang in CJS module - it breaks
   external: [
@@ -25,5 +25,5 @@ esbuild.build({
   ]
 }).then(() => {
   console.log('✅ Build successful!')
-  console.log('📄 Output: dist/index.js')
+  console.log('📄 Output: bin/index.js')
 }).catch(() => process.exit(1))
