@@ -1,6 +1,6 @@
 {
   "name": "@energma/tazz-cli",
-  "version": "1.0.0",
+  "version": "1.0.5",
   "description": "AI-powered task orchestrator with git worktrees, tmux sessions, and MCP integration",
   "keywords": [
     "ai",
@@ -14,14 +14,14 @@
   "author": "Tazz Development Team",
   "license": "MIT",
   "bin": {
-    "tazz": "./bin/tazz"
+    "tazz": "./bin/index.js"
   },
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./bin/index.js",
+  "types": "./bin/index.d.ts",
   "files": [
-    "dist",
     "templates",
-    "hooks"
+    "hooks",
+    "bin"
   ],
   "scripts": {
     "build": "node build-simple.js",
@@ -32,8 +32,8 @@
     "test:watch": "vitest --watch",
     "lint": "eslint src tests --ext .ts --fix",
     "type-check": "tsc --noEmit",
-    "clean": "rimraf dist",
-    "prepublishOnly": "npm run clean && npm run build && npm run test",
+    "clean": "rimraf bin",
+    "prepublishOnly": "npm run clean && npm run build",
     "release": "semantic-release"
   },
   "dependencies": {
