@@ -1,4 +1,4 @@
-# 🌀 Tazz CLI
+# 🌀 Tazz CLI (DEMO PROTOTYPE)
 
 > AI-powered task orchestrator with git worktrees, tmux sessions, and MCP integration
 
