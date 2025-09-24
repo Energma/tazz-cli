@@ -1,8 +1,11 @@
 import { Command } from 'commander'
 import chalk from 'chalk'
+import ora from 'ora'
 import inquirer from 'inquirer'
 import { exec } from 'child_process'
 import { promisify } from 'util'
+import { MCPSessionManager } from '../../core/services/MCPSessionManager'
+import { MCPIntegrationService } from '../../core/services/MCPIntegrationService'
 import { getLogger } from '../../utils/logger'
 
 const execAsync = promisify(exec)
@@ -14,38 +17,45 @@ export class DeleteCommand {
     return new Command('delete')
       .alias('rm')
       .alias('destroy')
-      .description('🗑️  Delete a Tazz process')
-      .argument('<process-id>', 'Process ID to delete (e.g., instance_task-1)')
+      .description('🗑️  Completely delete a session and its worktree')
+      .argument('<session-id>', 'Session ID to delete (e.g., JIRA-123, feature-name)')
       .option('-f, --force', 'Skip confirmation prompt')
-      .action(async (processId: string, options) => {
-        await this.execute(processId, options)
+      .action(async (sessionId: string, options) => {
+        await this.execute(sessionId, options)
       })
   }
 
-  async execute(processId: string, options: { force?: boolean } = {}): Promise<void> {
+  async execute(sessionId: string, options: { force?: boolean } = {}): Promise<void> {
     console.log('')
+    console.log(chalk.red(`🗑️  Deleting session: ${sessionId}`))
     
     try {
-      // Build tmux session name
-      const tmuxSessionName = `tazz_${processId}`
-      
+      // Initialize services
+      const mcpService = new MCPIntegrationService(this.logger)
+      const sessionManager = new MCPSessionManager(mcpService, this.logger)
+
       // Check if session exists
-      try {
-        await execAsync(`tmux has-session -t ${tmuxSessionName}`)
-      } catch (error) {
-        console.log(chalk.red(`❌ Tazz process not found: ${processId}`))
-        
-        // List available sessions
-        await this.listAvailableProcesses()
+      const sessionStore = sessionManager['sessionStore'] || new (await import('../../core/storage/SessionStore')).SessionStore()
+      const session = await sessionStore.getSession(sessionId)
+      if (!session) {
+        console.log(chalk.red(`❌ Session not found: ${sessionId}`))
+        await this.listAvailableSessions()
         process.exit(1)
       }
 
       // Confirmation prompt
       if (!options.force) {
+        console.log('')
+        console.log(chalk.yellow('⚠️  This will permanently delete:'))
+        console.log(chalk.gray(`   • Git worktree: ${session.worktreePath}`))
+        console.log(chalk.gray('   • Tmux session'))
+        console.log(chalk.gray('   • All session data'))
+        console.log('')
+
         const { confirmed } = await inquirer.prompt([{
           type: 'confirm',
           name: 'confirmed',
-          message: `Are you sure you want to delete Tazz process ${processId}? This will kill the tmux session.`,
+          message: `Are you sure you want to delete session ${sessionId}?`,
           default: false
         }])
 
@@ -55,28 +65,48 @@ export class DeleteCommand {
         }
       }
 
-      console.log(chalk.yellow(`🗑️  Deleting Tazz process: ${processId}`))
+      const spinner = ora('Deleting session and cleaning up all resources').start()
 
-      // Kill tmux session
-      await execAsync(`tmux kill-session -t ${tmuxSessionName}`)
+      // Delete the session completely (stops tmux, removes worktree, deletes session data)
+      await sessionManager.deleteSession(sessionId)
       
-      console.log(chalk.green(`✅ Tazz process ${processId} deleted`))
+      spinner.succeed('Session deleted successfully')
+      console.log(chalk.green(`✅ Session ${sessionId} has been completely removed`))
+      console.log(chalk.gray('   All worktree data has been permanently deleted'))
 
     } catch (error) {
-      console.log(chalk.red(`❌ Failed to delete process: ${(error as Error).message}`))
+      console.log(chalk.red(`❌ Failed to delete session: ${(error as Error).message}`))
+      
+      // Provide helpful suggestions
+      console.log('')
+      console.log(chalk.yellow('💡 Try these commands:'))
+      console.log(chalk.gray('   • tazz list - Check if session exists'))
+      console.log(chalk.gray('   • tazz clean --worktrees - Clean abandoned worktrees'))
+      console.log(chalk.gray('   • git worktree list - Check git worktrees manually'))
+      
       this.logger.error('Delete failed', error as Error)
       process.exit(1)
     }
   }
 
-  private async listAvailableProcesses(): Promise<void> {
+  private async listAvailableSessions(): Promise<void> {
     try {
-      const { stdout } = await execAsync('tmux list-sessions | grep tazz')
+      const mcpService = new MCPIntegrationService(this.logger)
+      const sessionManager = new MCPSessionManager(mcpService, this.logger)
+      const sessionStore = sessionManager['sessionStore'] || new (await import('../../core/storage/SessionStore')).SessionStore()
+      const sessions = await sessionStore.getAllSessions()
+      
       console.log('')
-      console.log(chalk.yellow('Available Tazz processes:'))
-      console.log(chalk.gray(stdout))
+      if (sessions.length > 0) {
+        console.log(chalk.yellow('Available sessions:'))
+        sessions.forEach(session => {
+          console.log(chalk.gray(`   • ${session.id} (${session.status})`))
+        })
+      } else {
+        console.log(chalk.gray('No sessions found'))
+      }
     } catch {
-      console.log(chalk.gray('No active Tazz processes found'))
+      console.log(chalk.gray('Unable to list sessions'))
     }
   }
 }
