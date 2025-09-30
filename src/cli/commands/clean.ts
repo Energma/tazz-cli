@@ -15,9 +15,11 @@ export class CleanCommand {
 
   build(): Command {
     return new Command('clean')
-      .description('🧹 Clean cache and temporary files')
+      .description('🧹 Clean cache, temporary files, and worktrees')
       .option('--deep', 'Deep clean including logs and configuration')
       .option('--dry-run', 'Show what would be cleaned without actually cleaning')
+      .option('--session <session-id>', 'Clean specific session and its worktree')
+      .option('--worktrees', 'Clean all abandoned worktrees')
       .action(async (options) => {
         await this.execute(options)
       })
@@ -26,6 +28,8 @@ export class CleanCommand {
   async execute(options: {
     deep?: boolean
     dryRun?: boolean
+    session?: string
+    worktrees?: boolean
   } = {}): Promise<void> {
     console.log('')
     console.log(chalk.bold.cyan('🧹 Tazz CLI Cleanup'))

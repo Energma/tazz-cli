@@ -13,6 +13,7 @@ import { DeleteCommand } from './cli/commands/delete'
 import { HealthCommand } from './cli/commands/health'
 import { InteractiveCommand } from './cli/commands/interactive'
 import { CleanCommand } from './cli/commands/clean'
+import { DoneCommand } from './cli/commands/done'
 
 const logger = getLogger()
 
@@ -72,6 +73,7 @@ async function main() {
   program.addCommand(new DeleteCommand().build())
   program.addCommand(new HealthCommand().build())
   program.addCommand(new CleanCommand().build())
+  program.addCommand(new DoneCommand().build())
 
   // Interactive mode (default when no command specified)
   program
@@ -90,11 +92,13 @@ async function main() {
     console.log('  $ tazz                         Start interactive menu')
     console.log('  $ tazz make                    Setup Tazz in current project')
     console.log('  $ tazz note                    Edit tasks and prompts')
-    console.log('  $ tazz run feature-auth        Start development instance')
+    console.log('  $ tazz run                     Start development sessions from todo')
+    console.log('  $ tazz list                    Show all active sessions')
+    console.log('  $ tazz join <session-id>       Join specific session')
+    console.log('  $ tazz done <session-id>       Complete session and cleanup')
     console.log('  $ tazz health                  Check system dependencies')
-    console.log('  $ tazz list                    Show all instances')
     console.log('')
-    console.log(chalk.yellow('For more information, visit: https://github.com/tazz-dev/tazz-cli'))
+    console.log(chalk.yellow('For more information, visit: https://github.com/Energma/tazz-cli'))
   })
 
   // Error handling

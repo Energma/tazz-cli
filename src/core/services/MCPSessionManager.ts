@@ -1,4 +1,5 @@
 import { MCPIntegrationService } from './MCPIntegrationService'
+import { GitWorktreeManager } from './GitWorktreeManager'
 import { SessionStore } from '../storage/SessionStore'
 import { Logger } from '../../utils/logger'
 import { TazzSession, SessionStatus, AgentInstance, AgentType, AgentStatus, SessionError } from '../types'
@@ -16,11 +17,13 @@ export interface SessionContext {
 export class MCPSessionManager {
   private mcpService: MCPIntegrationService
   private sessionStore: SessionStore
+  private worktreeManager: GitWorktreeManager
   private logger: Logger
 
   constructor(mcpService: MCPIntegrationService, logger: Logger) {
     this.mcpService = mcpService
     this.sessionStore = new SessionStore()
+    this.worktreeManager = new GitWorktreeManager(logger)
     this.logger = logger
   }
 
@@ -34,15 +37,17 @@ export class MCPSessionManager {
         throw new SessionError(`Session ${sessionId} already exists`, { sessionId })
       }
 
-      // Create git worktree
-      const branchName = context.customBranch || this.generateBranchName(sessionId)
-      const worktreePath = await this.createGitWorktree(sessionId, branchName)
+      // Ensure worktree setup (create directory and update .gitignore)
+      await this.worktreeManager.ensureWorktreeSetup()
+      
+      // Create git worktree using the manager
+      const worktreeInfo = await this.worktreeManager.createWorktree(sessionId, context.customBranch)
 
       // Create session object
       const session: TazzSession = {
         id: sessionId,
-        branch: branchName,
-        worktreePath,
+        branch: worktreeInfo.branchName,
+        worktreePath: worktreeInfo.worktreePath,
         status: SessionStatus.ACTIVE,
         createdAt: new Date(),
         lastActive: new Date(),
@@ -169,22 +174,70 @@ export class MCPSessionManager {
     }
   }
 
-  private generateBranchName(sessionId: string): string {
-    if (this.isJiraTicket(sessionId)) {
-      return `feature/${sessionId}`
+  /**
+   * Stops a session and cleans up its worktree
+   */
+  async stopSession(sessionId: string): Promise<void> {
+    this.logger.info('Stopping session', { sessionId })
+
+    try {
+      // Get session
+      const session = await this.sessionStore.getSession(sessionId)
+      if (!session) {
+        throw new SessionError(`Session ${sessionId} not found`, { sessionId })
+      }
+
+      // Update session status
+      session.status = SessionStatus.STOPPED
+      session.lastActive = new Date()
+      await this.sessionStore.saveSession(session)
+
+      // Stop tmux session if exists
+      try {
+        const tmuxSessionName = `tazz_${sessionId}`
+        await execa('tmux', ['kill-session', '-t', tmuxSessionName])
+        this.logger.info('Tmux session stopped', { sessionId, tmuxSessionName })
+      } catch (tmuxError) {
+        this.logger.warn('Failed to stop tmux session (may not exist)', { error: tmuxError.message, sessionId })
+      }
+
+      this.logger.info('Session stopped successfully', { sessionId })
+
+    } catch (error) {
+      this.logger.error('Failed to stop session', error, { sessionId })
+      throw error
     }
-    return `feature/${sessionId.toLowerCase().replace(/[^a-z0-9]/g, '-')}`
   }
 
-  private async createGitWorktree(sessionId: string, branchName: string): Promise<string> {
-    const worktreePath = join(process.cwd(), '..', sessionId)
-    
+  /**
+   * Deletes a session and removes its worktree completely
+   */
+  async deleteSession(sessionId: string): Promise<void> {
+    this.logger.info('Deleting session', { sessionId })
+
     try {
-      await execa('git', ['worktree', 'add', worktreePath, '-b', branchName])
-      return worktreePath
+      // Stop the session first
+      await this.stopSession(sessionId)
+
+      // Remove the worktree
+      await this.worktreeManager.removeWorktree(sessionId)
+
+      // Remove session from store
+      await this.sessionStore.deleteSession(sessionId)
+
+      this.logger.info('Session deleted successfully', { sessionId })
+
     } catch (error) {
-      throw new SessionError(`Failed to create git worktree: ${worktreePath}`, { sessionId, branchName }, error)
+      this.logger.error('Failed to delete session', error, { sessionId })
+      throw error
     }
+  }
+
+  /**
+   * Lists all active worktrees managed by Tazz
+   */
+  async listManagedWorktrees() {
+    return await this.worktreeManager.listWorktrees()
   }
 
   private createTasksFromContext(context: SessionContext): any[] {

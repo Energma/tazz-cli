@@ -81,6 +81,13 @@ export class SessionStore {
     }
   }
 
+  /**
+   * Alias for removeSession to match the naming convention used in MCPSessionManager
+   */
+  async deleteSession(sessionId: string): Promise<void> {
+    return this.removeSession(sessionId)
+  }
+
   async updateSessionStatus(sessionId: string, status: any): Promise<void> {
     const session = await this.getSession(sessionId)
     if (!session) {
