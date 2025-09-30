@@ -165,7 +165,7 @@ export class ListCommand {
       // Find first task process to show as example
       const taskSession = sessions.find(s => s.taskName)
       if (taskSession) {
-        console.log(chalk.gray('  Join task process:'), chalk.cyan(`tazz join ${taskSession.fullProcessId}`))
+        console.log(chalk.gray('  Join task session:'), chalk.cyan(`tazz join ${taskSession.fullProcessId}`))
       }
       
       // Find first main session
@@ -174,10 +174,13 @@ export class ListCommand {
         console.log(chalk.gray('  Join main session:'), chalk.cyan(`tazz join ${mainSession.fullProcessId || mainSession.project}`))
       }
       
-      console.log(chalk.gray('  Delete a process:'), chalk.cyan(`tazz delete <process-id>`))
+      console.log(chalk.gray('  Complete session:'), chalk.cyan(`tazz done ${taskSession?.fullProcessId || mainSession?.fullProcessId || '<session-id>'}`))
+      console.log(chalk.gray('  Complete all sessions:'), chalk.cyan('tazz done --all'))
+      console.log(chalk.gray('  Stop a session:'), chalk.cyan(`tazz stop <session-id>`))
     }
     
-    console.log(chalk.gray('  Create new processes:'), chalk.cyan('tazz run <instance-name>'))
+    console.log(chalk.gray('  Create new sessions:'), chalk.cyan('tazz run'))
+    console.log(chalk.gray('  Edit tasks:'), chalk.cyan('tazz note'))
     console.log('')
   }
 }

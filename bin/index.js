@@ -6,6 +6,9 @@ var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __esm = (fn, res) => function __init() {
+  return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
+};
 var __export = (target, all) => {
   for (var name in all)
     __defProp(target, name, { get: all[name], enumerable: true });
@@ -27,6 +30,182 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   mod
 ));
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
+
+// src/core/types/index.ts
+var SessionStatus, AgentType, AgentStatus, TaskStatus, AgentCommandType, ProjectType, TazzError, SessionError, GitError, AgentError, MCPError, ValidationError;
+var init_types = __esm({
+  "src/core/types/index.ts"() {
+    "use strict";
+    SessionStatus = /* @__PURE__ */ ((SessionStatus2) => {
+      SessionStatus2["ACTIVE"] = "active";
+      SessionStatus2["STOPPED"] = "stopped";
+      SessionStatus2["FAILED"] = "failed";
+      SessionStatus2["PAUSED"] = "paused";
+      return SessionStatus2;
+    })(SessionStatus || {});
+    AgentType = /* @__PURE__ */ ((AgentType2) => {
+      AgentType2["CLAUDE"] = "claude";
+      AgentType2["MCP"] = "mcp";
+      AgentType2["CUSTOM"] = "custom";
+      return AgentType2;
+    })(AgentType || {});
+    AgentStatus = /* @__PURE__ */ ((AgentStatus2) => {
+      AgentStatus2["RUNNING"] = "running";
+      AgentStatus2["STOPPED"] = "stopped";
+      AgentStatus2["ERROR"] = "error";
+      AgentStatus2["STARTING"] = "starting";
+      return AgentStatus2;
+    })(AgentStatus || {});
+    TaskStatus = /* @__PURE__ */ ((TaskStatus2) => {
+      TaskStatus2["TODO"] = "todo";
+      TaskStatus2["IN_PROGRESS"] = "in_progress";
+      TaskStatus2["BLOCKED"] = "blocked";
+      TaskStatus2["COMPLETED"] = "completed";
+      TaskStatus2["CANCELLED"] = "cancelled";
+      return TaskStatus2;
+    })(TaskStatus || {});
+    AgentCommandType = /* @__PURE__ */ ((AgentCommandType2) => {
+      AgentCommandType2["START_SESSION"] = "start_session";
+      AgentCommandType2["ATTACH_SESSION"] = "attach_session";
+      AgentCommandType2["RUN_TASK"] = "run_task";
+      AgentCommandType2["UPDATE_TODO"] = "update_todo";
+      AgentCommandType2["SPAWN_AGENT"] = "spawn_agent";
+      AgentCommandType2["PARALLEL_RUN"] = "parallel_run";
+      AgentCommandType2["ANALYZE_CODE"] = "analyze_code";
+      AgentCommandType2["GENERATE_TESTS"] = "generate_tests";
+      return AgentCommandType2;
+    })(AgentCommandType || {});
+    ProjectType = /* @__PURE__ */ ((ProjectType2) => {
+      ProjectType2["FRONTEND"] = "frontend";
+      ProjectType2["BACKEND"] = "backend";
+      ProjectType2["FULLSTACK"] = "fullstack";
+      ProjectType2["LIBRARY"] = "library";
+      ProjectType2["MOBILE"] = "mobile";
+      ProjectType2["MONOREPO"] = "monorepo";
+      return ProjectType2;
+    })(ProjectType || {});
+    TazzError = class extends Error {
+      constructor(message, context, cause) {
+        super(message);
+        this.context = context;
+        this.cause = cause;
+        this.name = this.constructor.name;
+      }
+    };
+    SessionError = class extends TazzError {
+      code = "SESSION_ERROR";
+      severity = "high";
+    };
+    GitError = class extends TazzError {
+      code = "GIT_ERROR";
+      severity = "medium";
+    };
+    AgentError = class extends TazzError {
+      code = "AGENT_ERROR";
+      severity = "high";
+    };
+    MCPError = class extends TazzError {
+      code = "MCP_ERROR";
+      severity = "medium";
+    };
+    ValidationError = class extends TazzError {
+      code = "VALIDATION_ERROR";
+      severity = "low";
+    };
+  }
+});
+
+// src/core/storage/SessionStore.ts
+var SessionStore_exports = {};
+__export(SessionStore_exports, {
+  SessionStore: () => SessionStore
+});
+var import_fs_extra10, import_path12, SessionStore;
+var init_SessionStore = __esm({
+  "src/core/storage/SessionStore.ts"() {
+    "use strict";
+    import_fs_extra10 = require("fs-extra");
+    import_path12 = require("path");
+    init_types();
+    SessionStore = class {
+      sessionsPath;
+      constructor(projectPath = process.cwd()) {
+        this.sessionsPath = (0, import_path12.join)(projectPath, ".tazz", "sessions.json");
+      }
+      async getAllSessions() {
+        try {
+          if (!await (0, import_fs_extra10.pathExists)(this.sessionsPath)) {
+            return [];
+          }
+          const data = await (0, import_fs_extra10.readFile)(this.sessionsPath, "utf-8");
+          const sessionData = JSON.parse(data);
+          return sessionData.sessions || [];
+        } catch (error) {
+          throw new SessionError("Failed to read sessions file", {
+            path: this.sessionsPath
+          }, error);
+        }
+      }
+      async getSession(sessionId) {
+        const sessions = await this.getAllSessions();
+        return sessions.find((s) => s.id === sessionId) || null;
+      }
+      async saveSession(session) {
+        try {
+          const sessions = await this.getAllSessions();
+          const existingIndex = sessions.findIndex((s) => s.id === session.id);
+          if (existingIndex >= 0) {
+            sessions[existingIndex] = session;
+          } else {
+            sessions.push(session);
+          }
+          const sessionData = {
+            sessions,
+            lastUpdated: (/* @__PURE__ */ new Date()).toISOString()
+          };
+          await (0, import_fs_extra10.ensureFile)(this.sessionsPath);
+          await (0, import_fs_extra10.writeFile)(this.sessionsPath, JSON.stringify(sessionData, null, 2));
+        } catch (error) {
+          throw new SessionError("Failed to save session", {
+            sessionId: session.id,
+            path: this.sessionsPath
+          }, error);
+        }
+      }
+      async removeSession(sessionId) {
+        try {
+          const sessions = await this.getAllSessions();
+          const filteredSessions = sessions.filter((s) => s.id !== sessionId);
+          const sessionData = {
+            sessions: filteredSessions,
+            lastUpdated: (/* @__PURE__ */ new Date()).toISOString()
+          };
+          await (0, import_fs_extra10.writeFile)(this.sessionsPath, JSON.stringify(sessionData, null, 2));
+        } catch (error) {
+          throw new SessionError("Failed to remove session", {
+            sessionId,
+            path: this.sessionsPath
+          }, error);
+        }
+      }
+      /**
+       * Alias for removeSession to match the naming convention used in MCPSessionManager
+       */
+      async deleteSession(sessionId) {
+        return this.removeSession(sessionId);
+      }
+      async updateSessionStatus(sessionId, status) {
+        const session = await this.getSession(sessionId);
+        if (!session) {
+          throw new SessionError(`Session ${sessionId} not found`);
+        }
+        session.status = status;
+        session.lastActive = /* @__PURE__ */ new Date();
+        await this.saveSession(session);
+      }
+    };
+  }
+});
 
 // src/index.ts
 var index_exports = {};
@@ -51,8 +230,8 @@ __export(index_exports, {
   main: () => main
 });
 module.exports = __toCommonJS(index_exports);
-var import_commander11 = require("commander");
-var import_chalk13 = __toESM(require("chalk"));
+var import_commander12 = require("commander");
+var import_chalk14 = __toESM(require("chalk"));
 
 // src/utils/logger.ts
 var import_winston = __toESM(require("winston"));
@@ -4241,85 +4420,8 @@ var coerce = {
 };
 var NEVER = INVALID;
 
-// src/core/types/index.ts
-var SessionStatus = /* @__PURE__ */ ((SessionStatus2) => {
-  SessionStatus2["ACTIVE"] = "active";
-  SessionStatus2["STOPPED"] = "stopped";
-  SessionStatus2["FAILED"] = "failed";
-  SessionStatus2["PAUSED"] = "paused";
-  return SessionStatus2;
-})(SessionStatus || {});
-var AgentType = /* @__PURE__ */ ((AgentType2) => {
-  AgentType2["CLAUDE"] = "claude";
-  AgentType2["MCP"] = "mcp";
-  AgentType2["CUSTOM"] = "custom";
-  return AgentType2;
-})(AgentType || {});
-var AgentStatus = /* @__PURE__ */ ((AgentStatus2) => {
-  AgentStatus2["RUNNING"] = "running";
-  AgentStatus2["STOPPED"] = "stopped";
-  AgentStatus2["ERROR"] = "error";
-  AgentStatus2["STARTING"] = "starting";
-  return AgentStatus2;
-})(AgentStatus || {});
-var TaskStatus = /* @__PURE__ */ ((TaskStatus2) => {
-  TaskStatus2["TODO"] = "todo";
-  TaskStatus2["IN_PROGRESS"] = "in_progress";
-  TaskStatus2["BLOCKED"] = "blocked";
-  TaskStatus2["COMPLETED"] = "completed";
-  TaskStatus2["CANCELLED"] = "cancelled";
-  return TaskStatus2;
-})(TaskStatus || {});
-var AgentCommandType = /* @__PURE__ */ ((AgentCommandType2) => {
-  AgentCommandType2["START_SESSION"] = "start_session";
-  AgentCommandType2["ATTACH_SESSION"] = "attach_session";
-  AgentCommandType2["RUN_TASK"] = "run_task";
-  AgentCommandType2["UPDATE_TODO"] = "update_todo";
-  AgentCommandType2["SPAWN_AGENT"] = "spawn_agent";
-  AgentCommandType2["PARALLEL_RUN"] = "parallel_run";
-  AgentCommandType2["ANALYZE_CODE"] = "analyze_code";
-  AgentCommandType2["GENERATE_TESTS"] = "generate_tests";
-  return AgentCommandType2;
-})(AgentCommandType || {});
-var ProjectType = /* @__PURE__ */ ((ProjectType2) => {
-  ProjectType2["FRONTEND"] = "frontend";
-  ProjectType2["BACKEND"] = "backend";
-  ProjectType2["FULLSTACK"] = "fullstack";
-  ProjectType2["LIBRARY"] = "library";
-  ProjectType2["MOBILE"] = "mobile";
-  ProjectType2["MONOREPO"] = "monorepo";
-  return ProjectType2;
-})(ProjectType || {});
-var TazzError = class extends Error {
-  constructor(message, context, cause) {
-    super(message);
-    this.context = context;
-    this.cause = cause;
-    this.name = this.constructor.name;
-  }
-};
-var SessionError = class extends TazzError {
-  code = "SESSION_ERROR";
-  severity = "high";
-};
-var GitError = class extends TazzError {
-  code = "GIT_ERROR";
-  severity = "medium";
-};
-var AgentError = class extends TazzError {
-  code = "AGENT_ERROR";
-  severity = "high";
-};
-var MCPError = class extends TazzError {
-  code = "MCP_ERROR";
-  severity = "medium";
-};
-var ValidationError = class extends TazzError {
-  code = "VALIDATION_ERROR";
-  severity = "low";
-};
-
 // src/core/services/MCPIntegrationService.ts
+init_types();
 var MCPServerSchema = external_exports.object({
   command: external_exports.string(),
   args: external_exports.array(external_exports.string()),
@@ -4617,6 +4719,7 @@ var MCPIntegrationService = class {
 var import_fs_extra2 = require("fs-extra");
 var import_path3 = require("path");
 var import_glob = require("glob");
+init_types();
 var CodebaseAnalysisError = class extends TazzError {
   code = "CODEBASE_ANALYSIS_ERROR";
   severity = "medium";
@@ -5205,6 +5308,7 @@ var CodebaseAnalyzer = class {
 // src/core/services/RulesGenerator.ts
 var import_fs_extra3 = require("fs-extra");
 var import_path4 = require("path");
+init_types();
 var RulesGenerationError = class extends TazzError {
   code = "RULES_GENERATION_ERROR";
   severity = "medium";
@@ -5908,6 +6012,7 @@ fi
 };
 
 // src/cli/commands/make.ts
+init_types();
 var MakeCommand = class {
   logger = getLogger();
   build() {
@@ -6050,36 +6155,33 @@ var MakeCommand = class {
     }
   }
   createInitialTodoTemplate() {
-    return `# Tazz Task Template
+    return `# Tazz Development Tasks
 
 ## Session Tasks
-- [ ] Task 1: Complete implementation
-      Session name: task-1
-      Description: 
-        Implement the main functionality for this feature. This context will be passed to the Claude instance in the tmux session.
 
-- [ ] Task 2: Write tests
-      Session name: task-2
-      Description: 
-        Create comprehensive tests for the implemented functionality. Focus on unit tests and integration tests.
+TaskName: Feature Implementation
+SessionName: feat-impl
+Description: Implement the main functionality for this feature. This context will be passed to the Claude instance in the tmux session.
 
-- [ ] Task 3: Update documentation
-      Session name: task-3
-      Description: 
-        Update relevant documentation including README, API docs, and inline comments.
+TaskName: Write Tests
+SessionName: write-tests
+Description: Create comprehensive tests for the implemented functionality. Focus on unit tests and integration tests.
 
-- [ ] Task 4: Code review preparation
-      Session name: task-4
-      Description: 
-        Prepare code for review, run linting, fix any issues, and ensure quality standards are met.
+TaskName: Update Documentation
+SessionName: update-docs
+Description: Update relevant documentation including README, API docs, and inline comments.
+
+TaskName: Code Review Preparation
+SessionName: code-review
+Description: Prepare code for review, run linting, fix any issues, and ensure quality standards are met.
 
 ## In Progress
-- [ ] Current task being worked on...
-      Session name: current-task
-      Description: 
-        Description of what is currently being implemented or debugged.
 
-## Quality Checklist
+TaskName: Current Implementation Task
+SessionName: current-work
+Description: Description of what is currently being implemented or debugged.
+
+## Quality Checklist (Legacy Format)
 - [ ] Code follows project patterns
 - [ ] Tests pass locally
 - [ ] Coverage meets threshold
@@ -6091,17 +6193,20 @@ Add notes about current session, decisions made, next steps...
 
 ## Quick Commands
 \`\`\`bash
-# Run all tasks (creates separate tmux sessions)
-tazz run instance-name
+# Start all tasks (creates separate tmux sessions)
+tazz run
 
 # Join specific task session
-tazz join instance-name task-1
+tazz join feat-impl
 
 # List all active sessions
 tazz list
 
-# Join main instance session
-tazz join instance-name
+# Complete a session and clean up
+tazz done feat-impl
+
+# Complete all sessions
+tazz done --all
 \`\`\`
 `;
   }
@@ -6640,42 +6745,39 @@ As a [user type], I want [functionality] so that [benefit]...
 - [ ] Documentation updated
 `;
       default:
-        return `# Tazz Task Template
+        return `# Tazz Development Tasks
 
 ## Session Tasks
-- [ ] Task 1: Complete implementation
-      Session name: task-1
-      Description: 
-        Implement the main functionality for this feature. This context will be passed to the Claude instance in the tmux session.
 
-- [ ] Task 2: Write tests
-      Session name: task-2
-      Description: 
-        Create comprehensive tests for the implemented functionality. Focus on unit tests and integration tests.
+TaskName: Feature Implementation
+SessionName: feat-impl
+Description: Implement the main functionality for this feature. This context will be passed to the Claude instance in the tmux session.
 
-- [ ] Task 3: Update documentation
-      Session name: task-3
-      Description: 
-        Update relevant documentation including README, API docs, and inline comments.
+TaskName: Write Tests
+SessionName: write-tests
+Description: Create comprehensive tests for the implemented functionality. Focus on unit tests and integration tests.
 
-- [ ] Task 4: Code review preparation
-      Session name: task-4
-      Description: 
-        Prepare code for review, run linting, fix any issues, and ensure quality standards are met.
+TaskName: Update Documentation
+SessionName: update-docs
+Description: Update relevant documentation including README, API docs, and inline comments.
+
+TaskName: Code Review Preparation
+SessionName: code-review
+Description: Prepare code for review, run linting, fix any issues, and ensure quality standards are met.
 
 ## In Progress
-- [ ] Current task being worked on...
-      Session name: current-task
-      Description: 
-        Description of what is currently being implemented or debugged.
+
+TaskName: Current Implementation Task
+SessionName: current-work
+Description: Description of what is currently being implemented or debugged.
 
 ## Blocked
-- [ ] Task waiting for dependency
-      Session name: blocked-task
-      Description: 
-        Describe what is blocking this task and what needs to be resolved.
 
-## Quality Checklist
+TaskName: Waiting for Dependencies
+SessionName: blocked-task
+Description: Describe what is blocking this task and what needs to be resolved.
+
+## Quality Checklist (Legacy Format)
 - [ ] Code follows project patterns
 - [ ] Tests pass locally
 - [ ] Coverage meets threshold
@@ -6687,23 +6789,26 @@ Add notes about current session, decisions made, next steps...
 
 ## Quick Commands
 \`\`\`bash
-# Run all tasks (creates separate tmux sessions)
-tazz run instance-name
+# Start all tasks (creates separate tmux sessions)
+tazz run
 
 # Join specific task session
-tazz join instance-name task-1
+tazz join feat-impl
 
 # List all active sessions
 tazz list
 
-# Join main instance session
-tazz join instance-name
+# Complete a session and clean up
+tazz done feat-impl
+
+# Complete all sessions
+tazz done --all
 \`\`\`
 `;
     }
   }
   async openInEditor(filePath, editor) {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve2, reject) => {
       const editorCommands = {
         "code": ["code", filePath],
         "vim": ["vim", filePath],
@@ -6720,7 +6825,7 @@ tazz join instance-name
       });
       process2.on("close", (code) => {
         if (code === 0) {
-          resolve();
+          resolve2();
         } else {
           reject(new Error(`Editor exited with code ${code}`));
         }
@@ -6736,10 +6841,8 @@ tazz join instance-name
 var import_commander3 = require("commander");
 var import_chalk5 = __toESM(require("chalk"));
 var import_ora3 = __toESM(require("ora"));
-var import_fs_extra6 = require("fs-extra");
-var import_path7 = require("path");
-var import_child_process3 = require("child_process");
-var import_util5 = require("util");
+var import_fs_extra9 = require("fs-extra");
+var import_path11 = require("path");
 
 // src/cli/ui/tornado.ts
 var import_chalk3 = __toESM(require("chalk"));
@@ -6814,7 +6917,7 @@ var TazzAnimation = class {
     process.stdout.write("\x1B[2J\x1B[0f");
   }
   sleep(ms) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+    return new Promise((resolve2) => setTimeout(resolve2, ms));
   }
   /**
    * Show a simple spinning tazz animation for shorter animations
@@ -6957,7 +7060,7 @@ var DependencyManager = class {
             await execAsync(tmuxCommand);
           }
           spinner.succeed(`tmux installed successfully using ${installer.name}`);
-          await new Promise((resolve) => setTimeout(resolve, 1e3));
+          await new Promise((resolve2) => setTimeout(resolve2, 1e3));
           if (await this.checkDependency("tmux")) {
             console.log(import_chalk4.default.green("\u2705 tmux is now available"));
             return true;
@@ -7028,266 +7131,1407 @@ var DependencyManager = class {
   }
 };
 
+// src/core/services/TodoFileParser.ts
+var import_fs_extra6 = require("fs-extra");
+var import_path7 = require("path");
+init_types();
+var TodoFileParser = class {
+  logger;
+  constructor(logger3) {
+    this.logger = logger3;
+  }
+  /**
+   * Parse tazz-todo.md file and extract structured task information
+   */
+  async parseFile(projectPath) {
+    const todoFilePath = (0, import_path7.join)(projectPath, ".tazz", "tazz-todo.md");
+    if (!await (0, import_fs_extra6.pathExists)(todoFilePath)) {
+      throw new ValidationError('tazz-todo.md file not found. Run "tazz note" to create it first.', {
+        filePath: todoFilePath
+      });
+    }
+    try {
+      const content = await (0, import_fs_extra6.readFile)(todoFilePath, "utf-8");
+      const tasks = this.parseMarkdownContent(content);
+      const stats = await import("fs-extra").then((fs) => fs.stat(todoFilePath));
+      const metadata = {
+        filePath: todoFilePath,
+        lastModified: stats.mtime,
+        totalTasks: tasks.length,
+        sections: this.extractSections(content),
+        sessionName: this.extractSessionName(content),
+        projectContext: this.extractProjectContext(content)
+      };
+      this.logger.info("Parsed todo file successfully", {
+        filePath: todoFilePath,
+        taskCount: tasks.length,
+        sections: metadata.sections
+      });
+      return { tasks, metadata };
+    } catch (error) {
+      this.logger.error("Failed to parse todo file", error, { filePath: todoFilePath });
+      throw new ValidationError(`Failed to parse todo file: ${error.message}`, {
+        filePath: todoFilePath
+      }, error);
+    }
+  }
+  /**
+   * Parse markdown content and extract tasks
+   */
+  parseMarkdownContent(content) {
+    const lines = content.split("\n");
+    const tasks = [];
+    let currentSection = "other" /* OTHER */;
+    let lineNumber = 0;
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      lineNumber = i + 1;
+      const sectionMatch = this.detectSection(line);
+      if (sectionMatch) {
+        currentSection = sectionMatch;
+        continue;
+      }
+      const simplifiedTaskMatch = line.match(/^[\s]*TaskName:\s*(.+)$/i);
+      if (simplifiedTaskMatch) {
+        const taskName = simplifiedTaskMatch[1].trim();
+        const simplifiedDetails = this.parseSimplifiedTaskDetails(lines, i + 1);
+        if (!simplifiedDetails.sessionName || !simplifiedDetails.description) {
+          this.logger.warn("Incomplete simplified task found - missing SessionName or Description", {
+            taskName,
+            lineNumber,
+            hasSessionName: !!simplifiedDetails.sessionName,
+            hasDescription: !!simplifiedDetails.description
+          });
+          i += Math.max(1, simplifiedDetails.linesProcessed);
+          continue;
+        }
+        if (!/^[a-z0-9-]+$/i.test(simplifiedDetails.sessionName)) {
+          this.logger.warn("Invalid session name format - using sanitized version", {
+            original: simplifiedDetails.sessionName,
+            sanitized: this.sanitizeSessionName(simplifiedDetails.sessionName),
+            lineNumber
+          });
+          simplifiedDetails.sessionName = this.sanitizeSessionName(simplifiedDetails.sessionName);
+        }
+        const task = {
+          id: this.generateTaskId(taskName, lineNumber),
+          name: taskName,
+          description: simplifiedDetails.description,
+          sessionName: simplifiedDetails.sessionName,
+          section: currentSection,
+          priority: this.determinePriority(taskName, simplifiedDetails),
+          status: this.determineStatus(currentSection),
+          context: {
+            fullDescription: this.buildSimplifiedFullDescription(taskName, simplifiedDetails),
+            technicalDetails: simplifiedDetails.technicalDetails,
+            dependencies: simplifiedDetails.dependencies,
+            acceptanceCriteria: simplifiedDetails.acceptanceCriteria,
+            notes: simplifiedDetails.notes
+          },
+          metadata: {
+            lineNumber,
+            rawText: line,
+            estimatedTime: simplifiedDetails.estimatedTime,
+            tags: this.extractTags(taskName)
+          }
+        };
+        tasks.push(task);
+        i += simplifiedDetails.linesProcessed;
+        continue;
+      }
+      const taskMatch = line.match(/^[\s]*-\s*\[\s*([x\s])\s*\]\s*(.+)$/);
+      if (taskMatch) {
+        const isCompleted = taskMatch[1].toLowerCase() === "x";
+        const taskContent = taskMatch[2].trim();
+        const taskDetails = this.parseTaskDetails(lines, i + 1);
+        const { name, description } = this.parseTaskLine(taskContent);
+        const task = {
+          id: this.generateTaskId(name, lineNumber),
+          name,
+          description: description || taskDetails.description || `Work on: ${name}`,
+          sessionName: taskDetails.sessionName || this.sanitizeSessionName(name),
+          section: currentSection,
+          priority: this.determinePriority(taskContent, taskDetails),
+          status: isCompleted ? "completed" /* COMPLETED */ : this.determineStatus(currentSection),
+          context: {
+            fullDescription: this.buildFullDescription(name, description || "", taskDetails),
+            technicalDetails: taskDetails.technicalDetails,
+            dependencies: taskDetails.dependencies,
+            acceptanceCriteria: taskDetails.acceptanceCriteria,
+            notes: taskDetails.notes
+          },
+          metadata: {
+            lineNumber,
+            rawText: line,
+            estimatedTime: taskDetails.estimatedTime,
+            tags: this.extractTags(taskContent)
+          }
+        };
+        tasks.push(task);
+        i += taskDetails.linesProcessed;
+      }
+    }
+    const executableTasks = tasks.filter(
+      (task) => task.status !== "completed" /* COMPLETED */ && task.status !== "blocked" /* BLOCKED */
+    );
+    this.logger.debug("Parsed tasks", {
+      totalTasks: tasks.length,
+      executableTasks: executableTasks.length,
+      sections: [...new Set(tasks.map((t) => t.section))]
+    });
+    return executableTasks;
+  }
+  /**
+   * Parse simplified task format details from subsequent lines
+   * Expects: SessionName: value and Description: value
+   */
+  parseSimplifiedTaskDetails(lines, startIndex) {
+    let sessionName = "";
+    let description = "";
+    let technicalDetails = "";
+    let dependencies = [];
+    let acceptanceCriteria = [];
+    let notes = [];
+    let estimatedTime = "";
+    let linesProcessed = 0;
+    let i = startIndex;
+    while (i < lines.length && linesProcessed < 10) {
+      const line = lines[i].trim();
+      linesProcessed++;
+      if (line.match(/^TaskName:/i) || line.match(/^[\s]*-\s*\[/) || line.match(/^#+/)) {
+        linesProcessed--;
+        break;
+      }
+      const sessionMatch = line.match(/^SessionName:\s*(.+)/i);
+      const descMatch = line.match(/^Description:\s*(.*)$/i);
+      const techMatch = line.match(/^Technical:\s*(.*)$/i);
+      const depMatch = line.match(/^Dependencies:\s*(.*)$/i);
+      const accMatch = line.match(/^Acceptance:\s*(.*)$/i);
+      const noteMatch = line.match(/^Notes:\s*(.*)$/i);
+      const timeMatch = line.match(/^Time:\s*(.+)/i);
+      if (sessionMatch) {
+        sessionName = sessionMatch[1].trim();
+      } else if (descMatch) {
+        description = descMatch[1].trim();
+      } else if (techMatch) {
+        technicalDetails = techMatch[1].trim();
+      } else if (depMatch) {
+        const depLine = depMatch[1].trim();
+        if (depLine) dependencies.push(depLine);
+      } else if (accMatch) {
+        const criteriaLine = accMatch[1].trim();
+        if (criteriaLine) acceptanceCriteria.push(criteriaLine);
+      } else if (noteMatch) {
+        const noteLine = noteMatch[1].trim();
+        if (noteLine) notes.push(noteLine);
+      } else if (timeMatch) {
+        estimatedTime = timeMatch[1].trim();
+      } else if (line === "") {
+      } else {
+        if (sessionName && description) {
+          linesProcessed--;
+          break;
+        }
+      }
+      i++;
+    }
+    return {
+      sessionName,
+      description,
+      technicalDetails: technicalDetails || void 0,
+      dependencies: dependencies.length ? dependencies : void 0,
+      acceptanceCriteria: acceptanceCriteria.length ? acceptanceCriteria : void 0,
+      notes: notes.length ? notes : void 0,
+      estimatedTime: estimatedTime || void 0,
+      linesProcessed
+    };
+  }
+  /**
+   * Parse additional task details from subsequent lines (legacy format)
+   */
+  parseTaskDetails(lines, startIndex) {
+    let sessionName = "";
+    let description = "";
+    let technicalDetails = "";
+    let dependencies = [];
+    let acceptanceCriteria = [];
+    let notes = [];
+    let estimatedTime = "";
+    let linesProcessed = 0;
+    let currentField = "";
+    let i = startIndex;
+    while (i < lines.length && lines[i].trim() !== "" && !lines[i].match(/^[\s]*-\s*\[/)) {
+      const line = lines[i].trim();
+      linesProcessed++;
+      const sessionMatch = line.match(/^Session name:\s*(.+)/i);
+      const descMatch = line.match(/^Description:\s*(.*)$/i);
+      const techMatch = line.match(/^Technical:\s*(.*)$/i);
+      const depMatch = line.match(/^Dependencies:\s*(.*)$/i);
+      const accMatch = line.match(/^Acceptance:\s*(.*)$/i);
+      const noteMatch = line.match(/^Notes:\s*(.*)$/i);
+      const timeMatch = line.match(/^Time:\s*(.+)/i);
+      if (sessionMatch) {
+        sessionName = sessionMatch[1].trim();
+        currentField = "";
+      } else if (descMatch) {
+        description = descMatch[1].trim();
+        currentField = "description";
+      } else if (techMatch) {
+        technicalDetails = techMatch[1].trim();
+        currentField = "technical";
+      } else if (depMatch) {
+        const depLine = depMatch[1].trim();
+        if (depLine) dependencies.push(depLine);
+        currentField = "dependencies";
+      } else if (accMatch) {
+        const criteriaLine = accMatch[1].trim();
+        if (criteriaLine) acceptanceCriteria.push(criteriaLine);
+        currentField = "acceptance";
+      } else if (noteMatch) {
+        const noteLine = noteMatch[1].trim();
+        if (noteLine) notes.push(noteLine);
+        currentField = "notes";
+      } else if (timeMatch) {
+        estimatedTime = timeMatch[1].trim();
+        currentField = "";
+      } else if (line && currentField) {
+        switch (currentField) {
+          case "description":
+            description += (description ? " " : "") + line;
+            break;
+          case "technical":
+            technicalDetails += (technicalDetails ? " " : "") + line;
+            break;
+          case "dependencies":
+            dependencies.push(line);
+            break;
+          case "acceptance":
+            acceptanceCriteria.push(line);
+            break;
+          case "notes":
+            notes.push(line);
+            break;
+        }
+      }
+      i++;
+    }
+    return {
+      sessionName,
+      description,
+      technicalDetails: technicalDetails || void 0,
+      dependencies: dependencies.length ? dependencies : void 0,
+      acceptanceCriteria: acceptanceCriteria.length ? acceptanceCriteria : void 0,
+      notes: notes.length ? notes : void 0,
+      estimatedTime: estimatedTime || void 0,
+      linesProcessed
+    };
+  }
+  detectSection(line) {
+    const trimmed = line.trim().toLowerCase();
+    if (trimmed.includes("session tasks") || trimmed.includes("## session tasks")) {
+      return "session-tasks" /* SESSION_TASKS */;
+    } else if (trimmed.includes("in progress") || trimmed.includes("## in progress")) {
+      return "in-progress" /* IN_PROGRESS */;
+    } else if (trimmed.includes("blocked") || trimmed.includes("## blocked")) {
+      return "blocked" /* BLOCKED */;
+    } else if (trimmed.includes("quality") || trimmed.includes("checklist")) {
+      return "quality-checklist" /* QUALITY_CHECKLIST */;
+    }
+    return null;
+  }
+  parseTaskLine(taskContent) {
+    const colonMatch = taskContent.match(/^([^:]+):\s*(.+)$/);
+    if (colonMatch) {
+      return {
+        name: colonMatch[1].trim(),
+        description: colonMatch[2].trim()
+      };
+    }
+    return { name: taskContent };
+  }
+  buildSimplifiedFullDescription(name, details) {
+    let fullDesc = `Task: ${name}
+`;
+    if (details.description) {
+      fullDesc += `Description: ${details.description}
+`;
+    }
+    if (details.technicalDetails) {
+      fullDesc += `Technical Details: ${details.technicalDetails}
+`;
+    }
+    if (details.dependencies?.length) {
+      fullDesc += `Dependencies: ${details.dependencies.join(", ")}
+`;
+    }
+    if (details.acceptanceCriteria?.length) {
+      fullDesc += `Acceptance Criteria:
+${details.acceptanceCriteria.map((c) => `- ${c}`).join("\n")}
+`;
+    }
+    if (details.notes?.length) {
+      fullDesc += `Notes:
+${details.notes.map((n) => `- ${n}`).join("\n")}
+`;
+    }
+    return fullDesc.trim();
+  }
+  buildFullDescription(name, description, details) {
+    let fullDesc = `Task: ${name}
+`;
+    if (description) {
+      fullDesc += `Description: ${description}
+`;
+    }
+    if (details.technicalDetails) {
+      fullDesc += `Technical Details: ${details.technicalDetails}
+`;
+    }
+    if (details.dependencies?.length) {
+      fullDesc += `Dependencies: ${details.dependencies.join(", ")}
+`;
+    }
+    if (details.acceptanceCriteria?.length) {
+      fullDesc += `Acceptance Criteria:
+${details.acceptanceCriteria.map((c) => `- ${c}`).join("\n")}
+`;
+    }
+    if (details.notes?.length) {
+      fullDesc += `Notes:
+${details.notes.map((n) => `- ${n}`).join("\n")}
+`;
+    }
+    return fullDesc.trim();
+  }
+  generateTaskId(name, lineNumber) {
+    const sanitized = name.toLowerCase().replace(/[^a-z0-9]/g, "-").substring(0, 20);
+    return `${sanitized}-${lineNumber}`;
+  }
+  sanitizeSessionName(name) {
+    return name.toLowerCase().replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").substring(0, 30);
+  }
+  determinePriority(taskContent, details) {
+    const text = `${taskContent} ${details.description || ""}`.toLowerCase();
+    if (text.includes("urgent") || text.includes("critical") || text.includes("high")) {
+      return "high" /* HIGH */;
+    } else if (text.includes("low") || text.includes("nice to have")) {
+      return "low" /* LOW */;
+    }
+    return "medium" /* MEDIUM */;
+  }
+  determineStatus(section) {
+    switch (section) {
+      case "in-progress" /* IN_PROGRESS */:
+        return "in_progress" /* IN_PROGRESS */;
+      case "blocked" /* BLOCKED */:
+        return "blocked" /* BLOCKED */;
+      default:
+        return "todo" /* TODO */;
+    }
+  }
+  extractTags(content) {
+    const tagMatches = content.match(/#[\w-]+/g);
+    return tagMatches ? tagMatches.map((tag) => tag.substring(1)) : [];
+  }
+  extractSections(content) {
+    const sections = [];
+    const lines = content.split("\n");
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (trimmed.startsWith("##") || trimmed.startsWith("#")) {
+        sections.push(trimmed.replace(/^#+\s*/, ""));
+      }
+    }
+    return sections;
+  }
+  extractSessionName(content) {
+    const sessionMatch = content.match(/## Session: \[(.+?)\]/i);
+    return sessionMatch ? sessionMatch[1] : void 0;
+  }
+  extractProjectContext(content) {
+    const lines = content.split("\n");
+    let context = "";
+    for (let i = 0; i < Math.min(10, lines.length); i++) {
+      const line = lines[i].trim();
+      if (line && !line.startsWith("#") && !line.startsWith("-")) {
+        context += line + " ";
+      }
+    }
+    return context.trim() || void 0;
+  }
+};
+
+// src/core/services/TmuxSessionOrchestrator.ts
+var import_execa3 = require("execa");
+var import_path9 = require("path");
+
+// src/core/services/GitWorktreeManager.ts
+var import_execa2 = require("execa");
+var import_path8 = require("path");
+var import_fs_extra7 = require("fs-extra");
+init_types();
+var GitWorktreeManager = class {
+  logger;
+  worktreesDir = "gitworktree-projects";
+  constructor(logger3) {
+    this.logger = logger3;
+  }
+  /**
+   * Creates a git worktree in the gitworktree-projects directory
+   */
+  async createWorktree(sessionId, branchName) {
+    this.logger.info("Creating git worktree", { sessionId, branchName });
+    try {
+      await this.verifyGitRepository();
+      const gitDir = await this.getGitDirectory();
+      const basePath = process.cwd();
+      const actualBranchName = branchName || this.generateBranchName(sessionId);
+      const worktreesBasePath = (0, import_path8.join)(basePath, this.worktreesDir);
+      await (0, import_fs_extra7.ensureDir)(worktreesBasePath);
+      const worktreePath = (0, import_path8.join)(worktreesBasePath, sessionId);
+      if ((0, import_fs_extra7.existsSync)(worktreePath)) {
+        throw new GitError(`Worktree already exists: ${worktreePath}`, { sessionId, worktreePath });
+      }
+      const branchExists = await this.branchExists(actualBranchName);
+      if (branchExists) {
+        await (0, import_execa2.execa)("git", ["worktree", "add", worktreePath, actualBranchName]);
+      } else {
+        await (0, import_execa2.execa)("git", ["worktree", "add", worktreePath, "-b", actualBranchName]);
+      }
+      const worktreeInfo = {
+        id: sessionId,
+        branchName: actualBranchName,
+        worktreePath: (0, import_path8.resolve)(worktreePath),
+        basePath,
+        gitDir
+      };
+      this.logger.info("Git worktree created successfully", worktreeInfo);
+      return worktreeInfo;
+    } catch (error) {
+      this.logger.error("Failed to create git worktree", error, { sessionId, branchName });
+      throw new GitError(`Failed to create git worktree: ${error.message}`, { sessionId, branchName }, error);
+    }
+  }
+  /**
+   * Removes a git worktree and cleans up the directory
+   */
+  async removeWorktree(sessionId) {
+    this.logger.info("Removing git worktree", { sessionId });
+    try {
+      const worktreePath = (0, import_path8.join)(process.cwd(), this.worktreesDir, sessionId);
+      if (!(0, import_fs_extra7.existsSync)(worktreePath)) {
+        this.logger.warn("Worktree directory not found, skipping removal", { worktreePath });
+        return;
+      }
+      try {
+        await (0, import_execa2.execa)("git", ["worktree", "remove", worktreePath, "--force"]);
+        this.logger.info("Git worktree removed from git registry", { worktreePath });
+      } catch (gitError) {
+        this.logger.warn("Failed to remove worktree via git, attempting manual cleanup", { error: gitError.message });
+        try {
+          await (0, import_fs_extra7.remove)(worktreePath);
+          await (0, import_execa2.execa)("git", ["worktree", "prune"]);
+        } catch (manualError) {
+          this.logger.error("Manual worktree cleanup failed", manualError, { worktreePath });
+        }
+      }
+      if ((0, import_fs_extra7.existsSync)(worktreePath)) {
+        await (0, import_fs_extra7.remove)(worktreePath);
+      }
+      this.logger.info("Git worktree removed successfully", { sessionId, worktreePath });
+    } catch (error) {
+      this.logger.error("Failed to remove git worktree", error, { sessionId });
+      throw new GitError(`Failed to remove git worktree: ${error.message}`, { sessionId }, error);
+    }
+  }
+  /**
+   * Lists all active worktrees
+   */
+  async listWorktrees() {
+    try {
+      const result = await (0, import_execa2.execa)("git", ["worktree", "list", "--porcelain"]);
+      const worktrees = [];
+      const lines = result.stdout.split("\n");
+      let currentWorktree = {};
+      for (const line of lines) {
+        if (line.startsWith("worktree ")) {
+          if (currentWorktree.worktreePath) {
+            this.addWorktreeIfTazz(worktrees, currentWorktree);
+          }
+          currentWorktree = { worktreePath: line.substring(9) };
+        } else if (line.startsWith("branch ")) {
+          currentWorktree.branchName = line.substring(7);
+        }
+      }
+      if (currentWorktree.worktreePath) {
+        this.addWorktreeIfTazz(worktrees, currentWorktree);
+      }
+      return worktrees;
+    } catch (error) {
+      this.logger.error("Failed to list worktrees", error);
+      throw new GitError(`Failed to list worktrees: ${error.message}`, {}, error);
+    }
+  }
+  /**
+   * Gets the worktrees directory path relative to current directory
+   */
+  getWorktreesDirectory() {
+    return (0, import_path8.join)(process.cwd(), this.worktreesDir);
+  }
+  /**
+   * Ensures the gitworktree-projects directory exists and is in .gitignore
+   */
+  async ensureWorktreeSetup() {
+    const basePath = process.cwd();
+    const worktreesPath = (0, import_path8.join)(basePath, this.worktreesDir);
+    const gitignorePath = (0, import_path8.join)(basePath, ".gitignore");
+    await (0, import_fs_extra7.ensureDir)(worktreesPath);
+    try {
+      const { readFile: readFile9, writeFile: writeFile9 } = await import("fs-extra");
+      let gitignoreContent = "";
+      if ((0, import_fs_extra7.existsSync)(gitignorePath)) {
+        gitignoreContent = await readFile9(gitignorePath, "utf8");
+      }
+      if (!gitignoreContent.includes(this.worktreesDir)) {
+        const newContent = gitignoreContent ? `${gitignoreContent}
+
+# Tazz CLI git worktrees
+${this.worktreesDir}/
+` : `# Tazz CLI git worktrees
+${this.worktreesDir}/
+`;
+        await writeFile9(gitignorePath, newContent);
+        this.logger.info("Added gitworktree-projects to .gitignore");
+      }
+    } catch (error) {
+      this.logger.warn("Failed to update .gitignore", { error: error.message });
+    }
+  }
+  async verifyGitRepository() {
+    try {
+      await (0, import_execa2.execa)("git", ["rev-parse", "--git-dir"]);
+    } catch (error) {
+      throw new GitError("Not in a git repository", {}, error);
+    }
+  }
+  async getGitDirectory() {
+    try {
+      const result = await (0, import_execa2.execa)("git", ["rev-parse", "--git-dir"]);
+      return (0, import_path8.resolve)(result.stdout.trim());
+    } catch (error) {
+      throw new GitError("Failed to get git directory", {}, error);
+    }
+  }
+  generateBranchName(sessionId) {
+    if (/^[A-Z]+-\d+$/.test(sessionId)) {
+      return `feature/${sessionId}`;
+    }
+    const sanitized = sessionId.toLowerCase().replace(/[^a-z0-9]/g, "-");
+    return `feature/${sanitized}`;
+  }
+  async branchExists(branchName) {
+    try {
+      await (0, import_execa2.execa)("git", ["show-ref", "--verify", `refs/heads/${branchName}`]);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  addWorktreeIfTazz(worktrees, worktree) {
+    if (worktree.worktreePath && worktree.worktreePath.includes(this.worktreesDir)) {
+      const sessionId = worktree.worktreePath.split("/").pop() || "";
+      worktrees.push({
+        ...worktree,
+        id: sessionId,
+        basePath: process.cwd(),
+        gitDir: ""
+      });
+    }
+  }
+};
+
+// src/core/services/TmuxSessionOrchestrator.ts
+init_types();
+var TmuxSessionOrchestrator = class {
+  logger;
+  worktreeManager;
+  constructor(logger3) {
+    this.logger = logger3;
+    this.worktreeManager = new GitWorktreeManager(logger3);
+  }
+  /**
+   * Orchestrate multiple tmux sessions for tasks
+   */
+  async orchestrateSessions(tasks, metadata, sessionId) {
+    const mainSessionId = sessionId || this.generateMainSessionId(metadata);
+    this.logger.info("Starting session orchestration", {
+      mainSessionId,
+      taskCount: tasks.length,
+      metadata
+    });
+    await this.worktreeManager.ensureWorktreeSetup();
+    const worktreeInfo = await this.worktreeManager.createWorktree(mainSessionId);
+    const sessions = [];
+    const summary = {
+      totalSessions: tasks.length,
+      successfulSessions: 0,
+      failedSessions: 0,
+      skippedSessions: 0,
+      errors: []
+    };
+    for (const task of tasks) {
+      try {
+        const sessionInfo = await this.createTaskSession(task, mainSessionId, worktreeInfo);
+        sessions.push(sessionInfo);
+        summary.successfulSessions++;
+        this.logger.debug("Task session created successfully", {
+          taskId: task.id,
+          sessionName: sessionInfo.tmuxSessionName
+        });
+      } catch (error) {
+        summary.failedSessions++;
+        summary.errors.push(`Task "${task.name}": ${error.message}`);
+        this.logger.error("Failed to create task session", error, {
+          taskId: task.id,
+          taskName: task.name
+        });
+        sessions.push({
+          id: `${mainSessionId}_${task.sessionName}`,
+          tmuxSessionName: "",
+          task,
+          worktreePath: worktreeInfo.worktreePath,
+          status: "failed" /* FAILED */,
+          createdAt: /* @__PURE__ */ new Date(),
+          lastActivity: /* @__PURE__ */ new Date()
+        });
+      }
+    }
+    const result = {
+      mainSessionId,
+      worktreeInfo,
+      sessions,
+      metadata,
+      summary
+    };
+    this.logger.info("Session orchestration completed", {
+      mainSessionId,
+      totalSessions: summary.totalSessions,
+      successful: summary.successfulSessions,
+      failed: summary.failedSessions
+    });
+    return result;
+  }
+  /**
+   * Create a tmux session for a specific task
+   */
+  async createTaskSession(task, mainSessionId, worktreeInfo) {
+    const sessionId = `${mainSessionId}_${task.sessionName}`;
+    const tmuxSessionName = `tazz_${sessionId}`;
+    try {
+      await (0, import_execa3.execa)("tmux", [
+        "new-session",
+        "-d",
+        "-s",
+        tmuxSessionName,
+        "-c",
+        worktreeInfo.worktreePath
+      ]);
+      await this.setupSessionEnvironment(tmuxSessionName, task, sessionId, worktreeInfo);
+      const sessionInfo = {
+        id: sessionId,
+        tmuxSessionName,
+        task,
+        worktreePath: worktreeInfo.worktreePath,
+        status: "created" /* CREATED */,
+        createdAt: /* @__PURE__ */ new Date(),
+        lastActivity: /* @__PURE__ */ new Date()
+      };
+      return sessionInfo;
+    } catch (error) {
+      throw new SessionError(
+        `Failed to create tmux session for task "${task.name}": ${error.message}`,
+        { taskId: task.id, sessionId, tmuxSessionName },
+        error
+      );
+    }
+  }
+  /**
+   * Setup the environment within a tmux session
+   */
+  async setupSessionEnvironment(tmuxSessionName, task, sessionId, worktreeInfo) {
+    try {
+      await (0, import_execa3.execa)("tmux", ["send-keys", "-t", tmuxSessionName, "clear", "Enter"]);
+      await this.sendTmuxCommand(tmuxSessionName, `echo "\u{1F680} Tazz Session: ${sessionId}"`);
+      await this.sendTmuxCommand(tmuxSessionName, `echo "\u{1F4C2} Worktree: ${worktreeInfo.worktreePath}"`);
+      await this.sendTmuxCommand(tmuxSessionName, `echo "\u{1F33F} Branch: ${worktreeInfo.branchName}"`);
+      await this.sendTmuxCommand(tmuxSessionName, `echo "\u{1F4DD} Task: ${task.name}"`);
+      await this.sendTmuxCommand(tmuxSessionName, `echo "\u26A1 Priority: ${task.priority}"`);
+      if (task.description !== task.name) {
+        await this.sendTmuxCommand(tmuxSessionName, `echo "\u{1F4A1} Description: ${task.description}"`);
+      }
+      await this.sendTmuxCommand(tmuxSessionName, 'echo ""');
+      if (task.context.technicalDetails) {
+        await this.sendTmuxCommand(tmuxSessionName, `echo "\u{1F527} Technical: ${task.context.technicalDetails}"`);
+      }
+      if (task.context.dependencies?.length) {
+        await this.sendTmuxCommand(tmuxSessionName, `echo "\u{1F517} Dependencies: ${task.context.dependencies.join(", ")}"`);
+      }
+      if (task.context.acceptanceCriteria?.length) {
+        await this.sendTmuxCommand(tmuxSessionName, 'echo "\u2705 Acceptance Criteria:"');
+        for (const criteria of task.context.acceptanceCriteria) {
+          await this.sendTmuxCommand(tmuxSessionName, `echo "   \u2022 ${criteria}"`);
+        }
+      }
+      await this.sendTmuxCommand(tmuxSessionName, 'echo ""');
+      await this.sendTmuxCommand(tmuxSessionName, 'echo "\u{1F3AE} Session Commands:"');
+      await this.sendTmuxCommand(tmuxSessionName, `echo "   \u2022 Join: tazz join ${sessionId}"`);
+      await this.sendTmuxCommand(tmuxSessionName, `echo "   \u2022 Stop: tazz stop ${sessionId}"`);
+      await this.sendTmuxCommand(tmuxSessionName, 'echo "   \u2022 List: tazz list"');
+      await this.sendTmuxCommand(tmuxSessionName, 'echo ""');
+      await this.sendTmuxCommand(tmuxSessionName, 'echo "\u23F3 Waiting for Claude Code initialization..."');
+      await this.sendTmuxCommand(tmuxSessionName, 'echo ""');
+      const markerFile = (0, import_path9.join)(worktreeInfo.worktreePath, ".tazz", `session-ready-${task.sessionName}`);
+      try {
+        const { ensureFile: ensureFile6 } = await import("fs-extra");
+        await ensureFile6(markerFile);
+      } catch (error) {
+        this.logger.debug("Failed to create marker file", { error: error.message, markerFile });
+      }
+    } catch (error) {
+      throw new SessionError(
+        `Failed to setup session environment: ${error.message}`,
+        { tmuxSessionName, taskId: task.id },
+        error
+      );
+    }
+  }
+  /**
+   * Split tmux session into multiple panes for better organization
+   */
+  async createSessionPanes(tmuxSessionName) {
+    try {
+      await (0, import_execa3.execa)("tmux", ["split-window", "-h", "-t", tmuxSessionName]);
+      await (0, import_execa3.execa)("tmux", ["split-window", "-v", "-t", `${tmuxSessionName}:0.1`]);
+      await (0, import_execa3.execa)("tmux", ["send-keys", "-t", `${tmuxSessionName}:0.0`, 'echo "Development Pane"', "Enter"]);
+      await (0, import_execa3.execa)("tmux", ["send-keys", "-t", `${tmuxSessionName}:0.1`, 'echo "Build/Watch Pane"', "Enter"]);
+      await (0, import_execa3.execa)("tmux", ["send-keys", "-t", `${tmuxSessionName}:0.2`, 'echo "Testing Pane"', "Enter"]);
+      await (0, import_execa3.execa)("tmux", ["select-pane", "-t", `${tmuxSessionName}:0.0`]);
+    } catch (error) {
+      this.logger.warn("Failed to create session panes", { error: error.message, tmuxSessionName });
+    }
+  }
+  /**
+   * Get information about active sessions
+   */
+  async getActiveSessions() {
+    try {
+      const result = await (0, import_execa3.execa)("tmux", ["list-sessions", "-F", "#{session_name}"]);
+      const sessions = result.stdout.split("\n").filter((name) => name.startsWith("tazz_")).map((name) => ({
+        id: name.replace("tazz_", ""),
+        tmuxSessionName: name,
+        task: null,
+        // Would need to be populated from session store
+        worktreePath: "",
+        status: "running" /* RUNNING */,
+        createdAt: /* @__PURE__ */ new Date(),
+        lastActivity: /* @__PURE__ */ new Date()
+      }));
+      return sessions;
+    } catch (error) {
+      this.logger.error("Failed to get active sessions", error);
+      return [];
+    }
+  }
+  /**
+   * Stop and cleanup a specific session
+   */
+  async stopSession(sessionId) {
+    const tmuxSessionName = `tazz_${sessionId}`;
+    try {
+      await (0, import_execa3.execa)("tmux", ["kill-session", "-t", tmuxSessionName]);
+      this.logger.info("Session stopped", { sessionId, tmuxSessionName });
+    } catch (error) {
+      this.logger.debug("Session stop failed (may not exist)", {
+        error: error.message,
+        sessionId,
+        tmuxSessionName
+      });
+    }
+  }
+  /**
+   * Stop all sessions for a main session ID
+   */
+  async stopAllSessions(mainSessionId) {
+    try {
+      const activeSessions = await this.getActiveSessions();
+      const relatedSessions = activeSessions.filter(
+        (session) => session.id.startsWith(mainSessionId)
+      );
+      await Promise.all(
+        relatedSessions.map((session) => this.stopSession(session.id))
+      );
+      this.logger.info("All sessions stopped", {
+        mainSessionId,
+        stoppedSessions: relatedSessions.length
+      });
+    } catch (error) {
+      this.logger.error("Failed to stop all sessions", error, { mainSessionId });
+      throw error;
+    }
+  }
+  /**
+   * Cleanup sessions and worktree
+   */
+  async cleanup(mainSessionId) {
+    try {
+      await this.stopAllSessions(mainSessionId);
+      await this.worktreeManager.removeWorktree(mainSessionId);
+      this.logger.info("Cleanup completed", { mainSessionId });
+    } catch (error) {
+      this.logger.error("Cleanup failed", error, { mainSessionId });
+      throw new SessionError(
+        `Cleanup failed for session ${mainSessionId}: ${error.message}`,
+        { mainSessionId },
+        error
+      );
+    }
+  }
+  async sendTmuxCommand(sessionName, command) {
+    await (0, import_execa3.execa)("tmux", ["send-keys", "-t", sessionName, command, "Enter"]);
+  }
+  generateMainSessionId(metadata) {
+    if (metadata.sessionName) {
+      return this.sanitizeSessionId(metadata.sessionName);
+    }
+    const timestamp = (/* @__PURE__ */ new Date()).toISOString().slice(0, 16).replace(/[:-]/g, "");
+    return `session-${timestamp}`;
+  }
+  sanitizeSessionId(id) {
+    return id.toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").substring(0, 30);
+  }
+};
+
+// src/core/services/ClaudeCodeLauncher.ts
+var import_execa4 = require("execa");
+var import_fs_extra8 = require("fs-extra");
+var import_path10 = require("path");
+init_types();
+var ClaudeCodeError = class extends TazzError {
+  code = "CLAUDE_CODE_ERROR";
+  severity = "medium";
+};
+var ClaudeCodeLauncher = class {
+  logger;
+  claudeCommand;
+  defaultSettings;
+  constructor(logger3) {
+    this.logger = logger3;
+    this.claudeCommand = "claude-code";
+    this.defaultSettings = {
+      model: "claude-3-sonnet",
+      temperature: 0.7,
+      maxTokens: 4e3,
+      timeout: 12e4
+      // 2 minutes
+    };
+  }
+  /**
+   * Launch Claude Code in multiple tmux sessions
+   */
+  async launchInSessions(sessions) {
+    this.logger.info("Launching Claude Code in multiple sessions", {
+      sessionCount: sessions.length
+    });
+    const results = [];
+    if (!await this.isClaudeCodeAvailable()) {
+      throw new ClaudeCodeError("Claude Code CLI is not available. Please install it first.");
+    }
+    for (const session of sessions) {
+      try {
+        if (session.status === "failed") {
+          results.push({
+            sessionId: session.id,
+            status: "skipped" /* SKIPPED */,
+            error: "Session creation failed"
+          });
+          continue;
+        }
+        const result = await this.launchInSession(session);
+        results.push(result);
+      } catch (error) {
+        this.logger.error("Failed to launch Claude Code in session", error, {
+          sessionId: session.id
+        });
+        results.push({
+          sessionId: session.id,
+          status: "failed" /* FAILED */,
+          error: error.message
+        });
+      }
+    }
+    this.logger.info("Claude Code launch completed", {
+      totalSessions: sessions.length,
+      successful: results.filter((r) => r.status === "success" /* SUCCESS */).length,
+      failed: results.filter((r) => r.status === "failed" /* FAILED */).length,
+      skipped: results.filter((r) => r.status === "skipped" /* SKIPPED */).length
+    });
+    return results;
+  }
+  /**
+   * Launch Claude Code in a specific tmux session
+   */
+  async launchInSession(session) {
+    const config = this.buildLaunchConfig(session);
+    try {
+      const contextFile = await this.createContextFile(session, config);
+      await this.delay(2e3);
+      await this.startClaudeInTmux(session.tmuxSessionName, config, contextFile);
+      this.logger.info("Claude Code launched successfully", {
+        sessionId: session.id,
+        tmuxSession: session.tmuxSessionName,
+        contextFile
+      });
+      return {
+        sessionId: session.id,
+        status: "success" /* SUCCESS */,
+        contextFile
+      };
+    } catch (error) {
+      this.logger.error("Failed to launch Claude Code", error, {
+        sessionId: session.id,
+        tmuxSession: session.tmuxSessionName
+      });
+      return {
+        sessionId: session.id,
+        status: "failed" /* FAILED */,
+        error: error.message
+      };
+    }
+  }
+  /**
+   * Build launch configuration for a session
+   */
+  buildLaunchConfig(session) {
+    const task = session.task;
+    const contextPrompt = this.buildContextPrompt(task);
+    return {
+      workingDirectory: session.worktreePath,
+      contextPrompt,
+      sessionSettings: { ...this.defaultSettings },
+      environmentVars: {
+        "TAZZ_SESSION_ID": session.id,
+        "TAZZ_TASK_NAME": task.name,
+        "TAZZ_TASK_PRIORITY": task.priority,
+        "TAZZ_WORKTREE_PATH": session.worktreePath
+      }
+    };
+  }
+  /**
+   * Build comprehensive context prompt for Claude
+   */
+  buildContextPrompt(task) {
+    const lines = [];
+    lines.push("# Tazz Development Session Context");
+    lines.push("");
+    lines.push(`## Current Task: ${task.name}`);
+    lines.push(`**Priority**: ${task.priority.toUpperCase()}`);
+    lines.push(`**Section**: ${task.section}`);
+    lines.push(`**Status**: ${task.status}`);
+    lines.push("");
+    if (task.description && task.description !== task.name) {
+      lines.push("## Description");
+      lines.push(task.description);
+      lines.push("");
+    }
+    if (task.context.technicalDetails) {
+      lines.push("## Technical Details");
+      lines.push(task.context.technicalDetails);
+      lines.push("");
+    }
+    if (task.context.dependencies?.length) {
+      lines.push("## Dependencies");
+      task.context.dependencies.forEach((dep) => {
+        lines.push(`- ${dep}`);
+      });
+      lines.push("");
+    }
+    if (task.context.acceptanceCriteria?.length) {
+      lines.push("## Acceptance Criteria");
+      task.context.acceptanceCriteria.forEach((criteria) => {
+        lines.push(`- ${criteria}`);
+      });
+      lines.push("");
+    }
+    if (task.context.notes?.length) {
+      lines.push("## Additional Notes");
+      task.context.notes.forEach((note) => {
+        lines.push(`- ${note}`);
+      });
+      lines.push("");
+    }
+    if (task.metadata.estimatedTime) {
+      lines.push(`## Estimated Time: ${task.metadata.estimatedTime}`);
+      lines.push("");
+    }
+    if (task.metadata.tags?.length) {
+      lines.push(`## Tags: ${task.metadata.tags.map((tag) => `#${tag}`).join(" ")}`);
+      lines.push("");
+    }
+    lines.push("## Development Guidelines");
+    lines.push("- Follow existing code patterns and conventions");
+    lines.push("- Write clean, well-documented code");
+    lines.push("- Include appropriate tests");
+    lines.push("- Consider performance and security implications");
+    lines.push("- Update documentation as needed");
+    lines.push("");
+    lines.push("## Session Commands");
+    lines.push("You are working in an isolated git worktree. Key commands:");
+    lines.push("- Use standard git commands (add, commit, push, etc.)");
+    lines.push("- Run tests and build commands as needed");
+    lines.push("- All changes are isolated to this worktree");
+    lines.push("");
+    lines.push("## Getting Started");
+    lines.push("1. Analyze the current codebase and project structure");
+    lines.push("2. Review the task requirements thoroughly");
+    lines.push("3. Plan your implementation approach");
+    lines.push("4. Start with small, incremental changes");
+    lines.push("5. Test frequently as you develop");
+    lines.push("");
+    lines.push("Ready to start working on this task! \u{1F680}");
+    return lines.join("\n");
+  }
+  /**
+   * Create a context file for the session
+   */
+  async createContextFile(session, config) {
+    const contextDir = (0, import_path10.join)(session.worktreePath, ".tazz");
+    const contextFile = (0, import_path10.join)(contextDir, `context-${session.task.sessionName}.md`);
+    try {
+      const { ensureDir: ensureDir5 } = await import("fs-extra");
+      await ensureDir5(contextDir);
+      await (0, import_fs_extra8.writeFile)(contextFile, config.contextPrompt);
+      this.logger.debug("Context file created", {
+        sessionId: session.id,
+        contextFile
+      });
+      return contextFile;
+    } catch (error) {
+      throw new ClaudeCodeError(`Failed to create context file: ${error.message}`, {
+        sessionId: session.id,
+        contextFile
+      }, error);
+    }
+  }
+  /**
+   * Start Claude Code within a tmux session
+   */
+  async startClaudeInTmux(tmuxSessionName, config, contextFile) {
+    try {
+      await this.sendTmuxKeys(tmuxSessionName, "clear");
+      await this.sendTmuxKeys(tmuxSessionName, `cd "${config.workingDirectory}"`);
+      if (config.environmentVars) {
+        for (const [key, value] of Object.entries(config.environmentVars)) {
+          await this.sendTmuxKeys(tmuxSessionName, `export ${key}="${value}"`);
+        }
+      }
+      await this.sendTmuxKeys(tmuxSessionName, 'echo "\u{1F916} Starting Claude Code..."');
+      await this.sendTmuxKeys(tmuxSessionName, `echo "\u{1F4C4} Context: ${contextFile}"`);
+      await this.sendTmuxKeys(tmuxSessionName, 'echo ""');
+      const claudeCommand = this.buildClaudeCommand(contextFile, config);
+      await this.sendTmuxKeys(tmuxSessionName, claudeCommand);
+    } catch (error) {
+      throw new ClaudeCodeError(`Failed to start Claude Code in tmux: ${error.message}`, {
+        tmuxSessionName
+      }, error);
+    }
+  }
+  /**
+   * Build the Claude Code command
+   */
+  buildClaudeCommand(contextFile, config) {
+    const parts = [this.claudeCommand];
+    if (contextFile) {
+      parts.push(`--file "${contextFile}"`);
+    }
+    parts.push(`--cwd "${config.workingDirectory}"`);
+    if (config.sessionSettings?.model) {
+      parts.push(`--model "${config.sessionSettings.model}"`);
+    }
+    return parts.join(" ");
+  }
+  /**
+   * Send keys to a tmux session
+   */
+  async sendTmuxKeys(sessionName, command) {
+    await (0, import_execa4.execa)("tmux", ["send-keys", "-t", sessionName, command, "Enter"]);
+  }
+  /**
+   * Check if Claude Code CLI is available
+   */
+  async isClaudeCodeAvailable() {
+    try {
+      await (0, import_execa4.execa)(this.claudeCommand, ["--version"]);
+      return true;
+    } catch (error) {
+      const alternatives = ["claude", "claude-cli", "anthropic-cli"];
+      for (const alt of alternatives) {
+        try {
+          await (0, import_execa4.execa)(alt, ["--version"]);
+          this.claudeCommand = alt;
+          this.logger.info(`Using Claude Code command: ${alt}`);
+          return true;
+        } catch {
+          continue;
+        }
+      }
+      this.logger.warn("Claude Code CLI not found", {
+        triedCommands: [this.claudeCommand, ...alternatives]
+      });
+      return false;
+    }
+  }
+  /**
+   * Utility function to add delays
+   */
+  async delay(ms) {
+    return new Promise((resolve2) => setTimeout(resolve2, ms));
+  }
+  /**
+   * Stop Claude Code in a specific session
+   */
+  async stopClaudeInSession(sessionId) {
+    const tmuxSessionName = `tazz_${sessionId}`;
+    try {
+      await (0, import_execa4.execa)("tmux", ["send-keys", "-t", tmuxSessionName, "C-c"]);
+      await this.delay(1e3);
+      await this.sendTmuxKeys(tmuxSessionName, "exit");
+      this.logger.info("Claude Code stopped in session", { sessionId });
+    } catch (error) {
+      this.logger.warn("Failed to stop Claude Code", { error: error.message, sessionId });
+    }
+  }
+  /**
+   * Set Claude Code command (for testing or custom installations)
+   */
+  setClaudeCommand(command) {
+    this.claudeCommand = command;
+  }
+  /**
+   * Update default settings
+   */
+  updateDefaultSettings(settings) {
+    this.defaultSettings = { ...this.defaultSettings, ...settings };
+  }
+};
+
 // src/cli/commands/run.ts
-var execAsync2 = (0, import_util5.promisify)(import_child_process3.exec);
+init_types();
 var RunCommand = class {
   logger = getLogger();
   build() {
-    return new import_commander3.Command("run").description("\u{1F680} Start a development session with git worktree and tmux").argument("<instance-name>", "Instance name (e.g., feature-auth, JIRA-123)").action(async (sessionName) => {
-      await this.execute(sessionName);
+    return new import_commander3.Command("run").description("\u{1F680} Start multiple development sessions from .tazz/tazz-todo.md").option("-s, --session <name>", "Override session name (default: auto-generated)").option("--no-claude", "Skip launching Claude Code in sessions").option("--dry-run", "Show what would be created without actually doing it").action(async (options) => {
+      await this.execute(options);
     });
   }
-  async execute(sessionName) {
+  async execute(options = {}) {
     const animation = new TazzAnimation();
     await animation.show();
     console.log("");
-    console.log(import_chalk5.default.bold.cyan(`\u{1F680} Starting session: ${sessionName}`));
+    console.log(import_chalk5.default.bold.cyan("\u{1F680} Starting Tazz Development Sessions"));
+    console.log(import_chalk5.default.gray("Reading tasks from .tazz/tazz-todo.md and creating isolated sessions..."));
     console.log("");
+    let orchestrationResult = null;
+    let orchestrator = null;
+    const cleanup = async (signal) => {
+      if (orchestrationResult && orchestrator) {
+        console.log("");
+        console.log(import_chalk5.default.yellow(`\u26A0\uFE0F  Received ${signal || "exit"} signal - cleaning up...`));
+        try {
+          await orchestrator.cleanup(orchestrationResult.mainSessionId);
+          console.log(import_chalk5.default.green("\u2705 Cleanup completed"));
+        } catch (cleanupError) {
+          console.log(import_chalk5.default.red(`\u274C Cleanup failed: ${cleanupError.message}`));
+        }
+      }
+      process.exit(signal === "SIGTERM" ? 143 : 130);
+    };
+    process.on("SIGINT", () => cleanup("SIGINT"));
+    process.on("SIGTERM", () => cleanup("SIGTERM"));
+    process.on("uncaughtException", (error) => {
+      this.logger.error("Uncaught exception during run command", error);
+      cleanup("uncaughtException").then(() => process.exit(1));
+    });
     try {
       await this.checkProjectInitialized();
       if (!await DependencyManager.ensureDependencies()) {
-        throw new Error("Required dependencies are missing");
+        throw new ValidationError("Required dependencies are missing");
       }
-      const tasks = await this.loadTasks();
-      if (tasks.length > 0) {
-        console.log(import_chalk5.default.bold("\u{1F4CB} Session Tasks:"));
-        tasks.forEach((task, i) => {
-          console.log(import_chalk5.default.gray(`   ${i + 1}.`), import_chalk5.default.cyan(task.name));
-          if (task.description) {
-            console.log(import_chalk5.default.gray(`      ${task.description.substring(0, 80)}...`));
-          }
-        });
+      const todoParser = new TodoFileParser(this.logger);
+      orchestrator = new TmuxSessionOrchestrator(this.logger);
+      const claudeLauncher = new ClaudeCodeLauncher(this.logger);
+      const spinner = (0, import_ora3.default)("Parsing tazz-todo.md file").start();
+      const { tasks, metadata } = await todoParser.parseFile(process.cwd());
+      spinner.succeed(`Found ${tasks.length} executable tasks`);
+      if (tasks.length === 0) {
+        throw new ValidationError('No executable tasks found in .tazz/tazz-todo.md. Run "tazz note" to create tasks.');
+      }
+      this.displayTasksPreview(tasks, metadata);
+      if (options.dryRun) {
+        console.log(import_chalk5.default.yellow("\u{1F50D} DRY RUN - No sessions will be created"));
         console.log("");
+        return;
       }
-      const worktreePath = await this.createWorktree(sessionName);
-      if (tasks.length > 0) {
-        await this.createTazzProcessesForTasks(sessionName, worktreePath, tasks);
-      } else {
-        await this.createTmuxSession(sessionName, worktreePath, "Main development session");
-      }
-      await this.saveSessionInfo(sessionName, {
-        worktreePath,
+      const sessionSpinner = (0, import_ora3.default)("Creating tmux sessions and git worktrees").start();
+      orchestrationResult = await orchestrator.orchestrateSessions(
         tasks,
-        branch: `feature/${sessionName}`,
-        createdAt: (/* @__PURE__ */ new Date()).toISOString()
-      });
-      console.log("");
-      console.log(import_chalk5.default.green("\u2705 Sessions started successfully!"));
-      console.log("");
-      console.log(import_chalk5.default.bold("\u{1F4CD} Session Details:"));
-      console.log(import_chalk5.default.gray("   Instance:"), import_chalk5.default.cyan(sessionName));
-      console.log(import_chalk5.default.gray("   Worktree:"), import_chalk5.default.cyan(worktreePath));
-      if (tasks.length > 0) {
-        console.log(import_chalk5.default.gray("   Tazz Processes:"));
-        tasks.forEach((task, i) => {
-          const taskSessionName = task.sessionName || `task${i + 1}`;
-          const fullSessionId = `${sessionName}_${taskSessionName}`;
-          console.log(import_chalk5.default.gray(`     ${i + 1}.`), import_chalk5.default.cyan(fullSessionId), import_chalk5.default.gray(`(${task.name})`));
-        });
-      } else {
-        console.log(import_chalk5.default.gray("   Tmux Session:"), import_chalk5.default.cyan(`tazz_${sessionName}`));
+        metadata,
+        options.session
+      );
+      sessionSpinner.succeed(`Created ${orchestrationResult.summary.successfulSessions}/${orchestrationResult.summary.totalSessions} sessions`);
+      this.displayOrchestrationResults(orchestrationResult);
+      if (options.claude !== false) {
+        const claudeSpinner = (0, import_ora3.default)("Launching Claude Code in each session").start();
+        try {
+          const claudeResults = await claudeLauncher.launchInSessions(orchestrationResult.sessions);
+          const successfulLaunches = claudeResults.filter((r) => r.status === "success").length;
+          claudeSpinner.succeed(`Claude Code launched in ${successfulLaunches}/${claudeResults.length} sessions`);
+          this.displayClaudeLaunchResults(claudeResults);
+        } catch (error) {
+          claudeSpinner.fail("Failed to launch Claude Code");
+          console.log(import_chalk5.default.yellow("\u26A0\uFE0F  Sessions were created but Claude Code launch failed"));
+          console.log(import_chalk5.default.gray(`   Error: ${error.message}`));
+          console.log(import_chalk5.default.gray("   You can manually join sessions and start Claude Code"));
+        }
       }
-      console.log("");
-      console.log(import_chalk5.default.bold("\u{1F517} Next Steps:"));
-      if (tasks.length > 0) {
-        console.log(import_chalk5.default.gray(`\u2022 ${tasks.length} separate Tazz processes created (detached)`));
-        const firstTaskSessionName = tasks[0]?.sessionName || "task1";
-        const firstFullSessionId = `${sessionName}_${firstTaskSessionName}`;
-        console.log(import_chalk5.default.gray("\u2022 Join specific process:"), import_chalk5.default.cyan(`tazz join ${firstFullSessionId}`));
-        console.log(import_chalk5.default.gray("\u2022 List all processes:"), import_chalk5.default.cyan("tazz list"));
-        console.log(import_chalk5.default.gray("\u2022 Delete a process:"), import_chalk5.default.cyan(`tazz delete ${firstFullSessionId}`));
-      } else {
-        console.log(import_chalk5.default.gray("\u2022 Session created (detached)"));
-        console.log(import_chalk5.default.gray("\u2022 Join session:"), import_chalk5.default.cyan(`tazz join ${sessionName}`));
-        console.log(import_chalk5.default.gray("\u2022 List all sessions:"), import_chalk5.default.cyan("tazz list"));
-      }
-      console.log(import_chalk5.default.gray("\u2022 Edit tasks:"), import_chalk5.default.cyan("tazz note"));
-      console.log("");
+      this.displayFinalSummary(orchestrationResult, options);
     } catch (error) {
-      this.logger.error("Session creation failed", error, { sessionName });
-      console.log("");
-      console.log(import_chalk5.default.red("\u274C Failed to start session"));
-      console.log(import_chalk5.default.red(`   ${error.message}`));
-      if (error.message.includes("dependencies")) {
+      this.logger.error("Session orchestration failed", error);
+      if (error instanceof ValidationError) {
         console.log("");
-        console.log(import_chalk5.default.yellow("\u{1F4A1} Suggestions:"));
-        console.log(import_chalk5.default.gray("   \u2022 Install dependencies:"), import_chalk5.default.cyan("tazz health --fix"));
-        console.log(import_chalk5.default.gray("   \u2022 Check system status:"), import_chalk5.default.cyan("tazz health"));
+        console.log(import_chalk5.default.red("\u274C Validation Error"));
+        console.log(import_chalk5.default.red(`   ${error.message}`));
+        this.displayValidationSuggestions(error);
+      } else if (error instanceof TazzError) {
+        console.log("");
+        console.log(import_chalk5.default.red(`\u274C ${error.constructor.name}`));
+        console.log(import_chalk5.default.red(`   ${error.message}`));
+      } else {
+        console.log("");
+        console.log(import_chalk5.default.red("\u274C Unexpected error occurred"));
+        console.log(import_chalk5.default.red(`   ${error.message}`));
       }
       console.log("");
       process.exit(1);
     }
   }
   async checkProjectInitialized() {
-    const tazzDir = (0, import_path7.join)(process.cwd(), ".tazz");
-    if (!await (0, import_fs_extra6.pathExists)(tazzDir)) {
-      throw new Error('Project not initialized. Run "tazz make" first.');
+    const tazzDir = (0, import_path11.join)(process.cwd(), ".tazz");
+    if (!await (0, import_fs_extra9.pathExists)(tazzDir)) {
+      throw new ValidationError('Project not initialized. Run "tazz make" first.');
     }
   }
-  async loadTasks() {
-    try {
-      const notesPath = (0, import_path7.join)(process.cwd(), ".tazz", "tazz-todo.md");
-      if (await (0, import_fs_extra6.pathExists)(notesPath)) {
-        const content = await (0, import_fs_extra6.readFile)(notesPath, "utf-8");
-        const tasks = [];
-        const lines = content.split("\n");
-        let i = 0;
-        while (i < lines.length) {
-          const taskMatch = lines[i].match(/^- \[ \] (.+)/);
-          if (taskMatch) {
-            const taskName = taskMatch[1];
-            let description = "";
-            let sessionName = "";
-            i++;
-            while (i < lines.length && lines[i].trim() !== "" && !lines[i].match(/^- \[ \]/)) {
-              const line = lines[i].trim();
-              const sessionMatch = line.match(/Session name:\s*(.+)/);
-              if (sessionMatch) {
-                sessionName = sessionMatch[1].trim();
-              }
-              if (line === "Description:") {
-                i++;
-                while (i < lines.length && lines[i].trim() !== "" && !lines[i].match(/^- \[ \]/) && !lines[i].includes("Session name:")) {
-                  description += lines[i].trim() + " ";
-                  i++;
-                }
-                i--;
-              }
-              i++;
-            }
-            i--;
-            tasks.push({
-              name: taskName,
-              description: description.trim() || `Work on: ${taskName}`,
-              sessionName: sessionName || taskName.toLowerCase().replace(/[^a-z0-9]/g, "-")
-            });
-          }
-          i++;
-        }
-        return tasks.slice(0, 5);
+  displayTasksPreview(tasks, metadata) {
+    console.log(import_chalk5.default.bold("\u{1F4CB} Parsed Tasks:"));
+    if (metadata.sessionName) {
+      console.log(import_chalk5.default.gray("   Session:"), import_chalk5.default.cyan(metadata.sessionName));
+    }
+    console.log(import_chalk5.default.gray("   File:"), import_chalk5.default.cyan(metadata.filePath));
+    console.log(import_chalk5.default.gray("   Total Tasks:"), import_chalk5.default.cyan(tasks.length.toString()));
+    console.log("");
+    tasks.forEach((task, i) => {
+      const priorityColor = task.priority === "high" ? import_chalk5.default.red : task.priority === "medium" ? import_chalk5.default.yellow : import_chalk5.default.gray;
+      console.log(import_chalk5.default.gray(`   ${i + 1}.`), import_chalk5.default.cyan(task.name));
+      console.log(import_chalk5.default.gray(`      Priority:`), priorityColor(task.priority.toUpperCase()));
+      console.log(import_chalk5.default.gray(`      Session:`), import_chalk5.default.yellow(task.sessionName));
+      if (task.description && task.description !== task.name) {
+        const desc = task.description.length > 60 ? task.description.substring(0, 60) + "..." : task.description;
+        console.log(import_chalk5.default.gray(`      Description: ${desc}`));
       }
-    } catch (error) {
-      this.logger.debug("Could not load tasks from notes", error);
-    }
-    return [];
+      if (task.context.dependencies?.length) {
+        console.log(import_chalk5.default.gray(`      Dependencies: ${task.context.dependencies.join(", ")}`));
+      }
+      console.log("");
+    });
   }
-  async createWorktree(sessionName) {
-    const spinner = (0, import_ora3.default)("Creating git worktree").start();
-    try {
-      const branchName = `feature/${sessionName}`;
-      const worktreePath = (0, import_path7.join)("..", sessionName);
-      await execAsync2(`git worktree add ${worktreePath} -b ${branchName}`);
-      spinner.succeed("Git worktree created");
-      return (0, import_path7.join)(process.cwd(), worktreePath);
-    } catch (error) {
-      spinner.fail("Failed to create worktree");
-      throw new Error(`Git worktree creation failed: ${error.message}`);
-    }
-  }
-  async createTazzProcessesForTasks(sessionName, worktreePath, tasks) {
-    const spinner = (0, import_ora3.default)(`Creating ${tasks.length} separate Tazz processes`).start();
-    try {
-      const processPromises = tasks.map(async (task, index) => {
-        const taskSessionName = task.sessionName || `task${index + 1}`;
-        const fullSessionId = `${sessionName}_${taskSessionName}`;
-        const tmuxSessionId = `tazz_${fullSessionId}`;
-        await execAsync2(`tmux new-session -d -s ${tmuxSessionId} -c "${worktreePath}"`);
-        await this.setupTaskSession(tmuxSessionId, task, fullSessionId);
-        return {
-          taskName: taskSessionName,
-          sessionId: fullSessionId,
-          tmuxSession: tmuxSessionId,
-          task
-        };
+  displayOrchestrationResults(result) {
+    console.log("");
+    console.log(import_chalk5.default.bold("\u{1F4CD} Session Details:"));
+    console.log(import_chalk5.default.gray("   Main Session:"), import_chalk5.default.cyan(result.mainSessionId));
+    console.log(import_chalk5.default.gray("   Worktree:"), import_chalk5.default.cyan(result.worktreeInfo.worktreePath));
+    console.log(import_chalk5.default.gray("   Branch:"), import_chalk5.default.cyan(result.worktreeInfo.branchName));
+    console.log("");
+    if (result.summary.errors.length > 0) {
+      console.log(import_chalk5.default.yellow("\u26A0\uFE0F  Session Creation Issues:"));
+      result.summary.errors.forEach((error) => {
+        console.log(import_chalk5.default.gray("   \u2022"), import_chalk5.default.yellow(error));
       });
-      const createdProcesses = await Promise.all(processPromises);
-      spinner.succeed(`Created ${tasks.length} Tazz processes`);
-      return createdProcesses;
-    } catch (error) {
-      spinner.fail("Failed to create Tazz processes");
-      throw new Error(`Tazz processes creation failed: ${error.message}`);
+      console.log("");
     }
+    console.log(import_chalk5.default.bold("\u{1F3AF} Created Sessions:"));
+    result.sessions.filter((session) => session.status !== "failed").forEach((session, i) => {
+      const statusColor = session.status === "created" ? import_chalk5.default.green : session.status === "running" ? import_chalk5.default.cyan : import_chalk5.default.gray;
+      console.log(import_chalk5.default.gray(`   ${i + 1}.`), import_chalk5.default.cyan(session.id));
+      console.log(import_chalk5.default.gray(`      Task:`), session.task.name);
+      console.log(import_chalk5.default.gray(`      Status:`), statusColor(session.status));
+      console.log(import_chalk5.default.gray(`      Tmux:`), import_chalk5.default.yellow(session.tmuxSessionName));
+    });
+    console.log("");
   }
-  async setupTaskSession(tmuxSessionId, task, sessionId) {
-    await execAsync2(`tmux send-keys -t ${tmuxSessionId} 'clear' Enter`);
-    await execAsync2(`tmux send-keys -t ${tmuxSessionId} 'echo "\u{1F680} Tazz Process: ${sessionId}"' Enter`);
-    await execAsync2(`tmux send-keys -t ${tmuxSessionId} 'echo "\u{1F4C2} Working directory: $(pwd)"' Enter`);
-    await execAsync2(`tmux send-keys -t ${tmuxSessionId} 'echo "\u{1F4DD} Task: ${task.name}"' Enter`);
-    if (task.description) {
-      await execAsync2(`tmux send-keys -t ${tmuxSessionId} 'echo "\u{1F4A1} Context: ${task.description}"' Enter`);
-    }
-    await execAsync2(`tmux send-keys -t ${tmuxSessionId} 'echo ""' Enter`);
-    await execAsync2(`tmux send-keys -t ${tmuxSessionId} 'echo "This is an independent Tazz process."' Enter`);
-    await execAsync2(`tmux send-keys -t ${tmuxSessionId} 'echo "Use: tazz join ${sessionId} to attach"' Enter`);
-    await execAsync2(`tmux send-keys -t ${tmuxSessionId} 'echo "Use: tazz list to see all processes"' Enter`);
-    await execAsync2(`tmux send-keys -t ${tmuxSessionId} 'echo ""' Enter`);
-  }
-  async createTmuxSession(sessionName, worktreePath, description) {
-    const spinner = (0, import_ora3.default)("Creating tmux session").start();
-    try {
-      const sessionId = `tazz_${sessionName}`;
-      await execAsync2(`tmux new-session -d -s ${sessionId} -c "${worktreePath}"`);
-      await execAsync2(`tmux send-keys -t ${sessionId} 'clear' Enter`);
-      await execAsync2(`tmux send-keys -t ${sessionId} 'echo "\u{1F680} Tazz Session: ${sessionName}"' Enter`);
-      await execAsync2(`tmux send-keys -t ${sessionId} 'echo "\u{1F4C2} Working directory: $(pwd)"' Enter`);
-      if (description) {
-        await execAsync2(`tmux send-keys -t ${sessionId} 'echo "\u{1F4A1} Context: ${description}"' Enter`);
-      }
-      await execAsync2(`tmux send-keys -t ${sessionId} 'echo "\u{1F4DD} Edit tasks: tazz note"' Enter`);
-      await execAsync2(`tmux send-keys -t ${sessionId} 'echo ""' Enter`);
-      spinner.succeed("Tmux session created");
-    } catch (error) {
-      spinner.fail("Failed to create tmux session");
-      throw new Error(`Tmux session creation failed: ${error.message}`);
-    }
-  }
-  async attachTmuxSession(sessionName) {
-    try {
-      const sessionId = `tazz_${sessionName}`;
-      if (process.env.TMUX) {
-        console.log(import_chalk5.default.yellow("\u26A0\uFE0F  Already inside a tmux session"));
-        console.log(import_chalk5.default.gray("   Switch to session:"), import_chalk5.default.cyan(`tmux switch-client -t ${sessionId}`));
-        return;
-      }
-      const { spawn: spawn2 } = require("child_process");
-      const tmux = spawn2("tmux", ["attach-session", "-t", sessionId], {
-        stdio: "inherit",
-        detached: false
+  displayClaudeLaunchResults(results) {
+    const successful = results.filter((r) => r.status === "success");
+    const failed = results.filter((r) => r.status === "failed");
+    if (successful.length > 0) {
+      console.log(import_chalk5.default.bold("\u{1F916} Claude Code Status:"));
+      successful.forEach((result) => {
+        console.log(import_chalk5.default.gray("   \u2022"), import_chalk5.default.green(result.sessionId), import_chalk5.default.gray("- Claude Code running"));
       });
-      tmux.on("exit", (code) => {
-        process.exit(code || 0);
-      });
-    } catch (error) {
-      console.log(import_chalk5.default.yellow("\u26A0\uFE0F  Could not attach to tmux session"));
-      console.log(import_chalk5.default.gray("   Attach manually:"), import_chalk5.default.cyan(`tmux attach-session -t tazz_${sessionName}`));
     }
+    if (failed.length > 0) {
+      console.log("");
+      console.log(import_chalk5.default.yellow("\u26A0\uFE0F  Claude Code Launch Issues:"));
+      failed.forEach((result) => {
+        console.log(import_chalk5.default.gray("   \u2022"), import_chalk5.default.red(result.sessionId), import_chalk5.default.gray(`- ${result.error}`));
+      });
+    }
+    console.log("");
   }
-  async saveSessionInfo(sessionName, info) {
-    try {
-      const projectTazzDir = getProjectTazzDir(process.cwd());
-      const sessionsPath = (0, import_path7.join)(projectTazzDir, "sessions.json");
-      let sessions = { sessions: [] };
-      try {
-        const content = await (0, import_fs_extra6.readFile)(sessionsPath, "utf-8");
-        sessions = JSON.parse(content);
-      } catch {
-      }
-      const existingIndex = sessions.sessions.findIndex((s) => s.id === sessionName);
-      const sessionData = {
-        id: sessionName,
-        ...info,
-        status: "active",
-        lastActive: (/* @__PURE__ */ new Date()).toISOString()
-      };
-      if (existingIndex >= 0) {
-        sessions.sessions[existingIndex] = sessionData;
-      } else {
-        sessions.sessions.push(sessionData);
-      }
-      sessions.lastUpdated = (/* @__PURE__ */ new Date()).toISOString();
-      this.logger.info("Session info saved", { sessionName, info });
-    } catch (error) {
-      this.logger.warn("Could not save session info", error);
+  displayFinalSummary(result, options) {
+    console.log(import_chalk5.default.bold("\u{1F517} Next Steps:"));
+    const activeSessions = result.sessions.filter((s) => s.status !== "failed");
+    if (activeSessions.length > 0) {
+      console.log(import_chalk5.default.gray("\u2022 Join specific session:"), import_chalk5.default.cyan(`tazz join ${activeSessions[0].id}`));
+      console.log(import_chalk5.default.gray("\u2022 List all sessions:"), import_chalk5.default.cyan("tazz list"));
+      console.log(import_chalk5.default.gray("\u2022 Stop all sessions:"), import_chalk5.default.cyan(`tazz stop ${result.mainSessionId}`));
+      console.log(import_chalk5.default.gray("\u2022 Delete all sessions:"), import_chalk5.default.cyan(`tazz delete ${result.mainSessionId} --force`));
+    }
+    console.log(import_chalk5.default.gray("\u2022 Edit tasks:"), import_chalk5.default.cyan("tazz note"));
+    console.log("");
+    console.log(import_chalk5.default.bold("\u{1F4CB} Session Commands:"));
+    activeSessions.slice(0, 3).forEach((session) => {
+      console.log(import_chalk5.default.gray("   Join:"), import_chalk5.default.cyan(`tazz join ${session.id}`));
+    });
+    if (activeSessions.length > 3) {
+      console.log(import_chalk5.default.gray(`   ... and ${activeSessions.length - 3} more sessions`));
+    }
+    console.log("");
+    console.log(import_chalk5.default.green("\u2705 Development environment ready!"));
+    console.log(import_chalk5.default.gray(`   ${activeSessions.length} sessions created with Claude Code integration`));
+    console.log("");
+  }
+  displayValidationSuggestions(error) {
+    console.log("");
+    console.log(import_chalk5.default.yellow("\u{1F4A1} Suggestions:"));
+    if (error.message.includes("not initialized")) {
+      console.log(import_chalk5.default.gray("   \u2022 Initialize project:"), import_chalk5.default.cyan("tazz make"));
+    } else if (error.message.includes("dependencies")) {
+      console.log(import_chalk5.default.gray("   \u2022 Check system:"), import_chalk5.default.cyan("tazz health"));
+      console.log(import_chalk5.default.gray("   \u2022 Install dependencies:"), import_chalk5.default.cyan("tazz health --fix"));
+    } else if (error.message.includes("tazz-todo.md")) {
+      console.log(import_chalk5.default.gray("   \u2022 Create todo file:"), import_chalk5.default.cyan("tazz note"));
+      console.log(import_chalk5.default.gray("   \u2022 Edit existing tasks:"), import_chalk5.default.cyan("tazz note --editor code"));
+    } else if (error.message.includes("No executable tasks")) {
+      console.log(import_chalk5.default.gray("   \u2022 Add tasks to todo file:"), import_chalk5.default.cyan("tazz note"));
+      console.log(import_chalk5.default.gray("   \u2022 Check task format in file"));
     }
   }
 };
@@ -7295,9 +8539,9 @@ var RunCommand = class {
 // src/cli/commands/list.ts
 var import_commander4 = require("commander");
 var import_chalk6 = __toESM(require("chalk"));
-var import_child_process4 = require("child_process");
-var import_util6 = require("util");
-var execAsync3 = (0, import_util6.promisify)(import_child_process4.exec);
+var import_child_process3 = require("child_process");
+var import_util5 = require("util");
+var execAsync2 = (0, import_util5.promisify)(import_child_process3.exec);
 var ListCommand = class {
   logger = getLogger();
   build() {
@@ -7355,7 +8599,7 @@ var ListCommand = class {
   }
   async getTmuxSessions() {
     try {
-      const { stdout } = await execAsync3('tmux list-sessions -F "#{session_name}:#{session_created}" 2>/dev/null || true');
+      const { stdout } = await execAsync2('tmux list-sessions -F "#{session_name}:#{session_created}" 2>/dev/null || true');
       if (!stdout.trim()) {
         return [];
       }
@@ -7416,15 +8660,18 @@ var ListCommand = class {
     if (sessions.length > 0) {
       const taskSession = sessions.find((s) => s.taskName);
       if (taskSession) {
-        console.log(import_chalk6.default.gray("  Join task process:"), import_chalk6.default.cyan(`tazz join ${taskSession.fullProcessId}`));
+        console.log(import_chalk6.default.gray("  Join task session:"), import_chalk6.default.cyan(`tazz join ${taskSession.fullProcessId}`));
       }
       const mainSession = sessions.find((s) => !s.taskName);
       if (mainSession && mainSession.project) {
         console.log(import_chalk6.default.gray("  Join main session:"), import_chalk6.default.cyan(`tazz join ${mainSession.fullProcessId || mainSession.project}`));
       }
-      console.log(import_chalk6.default.gray("  Delete a process:"), import_chalk6.default.cyan(`tazz delete <process-id>`));
+      console.log(import_chalk6.default.gray("  Complete session:"), import_chalk6.default.cyan(`tazz done ${taskSession?.fullProcessId || mainSession?.fullProcessId || "<session-id>"}`));
+      console.log(import_chalk6.default.gray("  Complete all sessions:"), import_chalk6.default.cyan("tazz done --all"));
+      console.log(import_chalk6.default.gray("  Stop a session:"), import_chalk6.default.cyan(`tazz stop <session-id>`));
     }
-    console.log(import_chalk6.default.gray("  Create new processes:"), import_chalk6.default.cyan("tazz run <instance-name>"));
+    console.log(import_chalk6.default.gray("  Create new sessions:"), import_chalk6.default.cyan("tazz run"));
+    console.log(import_chalk6.default.gray("  Edit tasks:"), import_chalk6.default.cyan("tazz note"));
     console.log("");
   }
 };
@@ -7432,9 +8679,9 @@ var ListCommand = class {
 // src/cli/commands/join.ts
 var import_commander5 = require("commander");
 var import_chalk7 = __toESM(require("chalk"));
-var import_child_process5 = require("child_process");
-var import_util7 = require("util");
-var execAsync4 = (0, import_util7.promisify)(import_child_process5.exec);
+var import_child_process4 = require("child_process");
+var import_util6 = require("util");
+var execAsync3 = (0, import_util6.promisify)(import_child_process4.exec);
 var JoinCommand = class {
   logger = getLogger();
   build() {
@@ -7448,7 +8695,7 @@ var JoinCommand = class {
       const tmuxSessionName = `tazz_${processId}`;
       console.log(import_chalk7.default.cyan(`\u{1F517} Joining Tazz process: ${processId}`));
       try {
-        await execAsync4(`tmux has-session -t ${tmuxSessionName}`);
+        await execAsync3(`tmux has-session -t ${tmuxSessionName}`);
       } catch (error) {
         console.log(import_chalk7.default.red(`\u274C Tazz process not found: ${processId}`));
         await this.listAvailableSessions();
@@ -7484,7 +8731,7 @@ var JoinCommand = class {
   }
   async listAvailableSessions() {
     try {
-      const { stdout } = await execAsync4("tmux list-sessions | grep tazz");
+      const { stdout } = await execAsync3("tmux list-sessions | grep tazz");
       console.log("");
       console.log(import_chalk7.default.yellow("Available Tazz processes:"));
       console.log(import_chalk7.default.gray(stdout));
@@ -7497,79 +8744,248 @@ var JoinCommand = class {
 // src/cli/commands/stop.ts
 var import_commander6 = require("commander");
 var import_chalk8 = __toESM(require("chalk"));
+var import_ora4 = __toESM(require("ora"));
 
-// src/core/storage/SessionStore.ts
-var import_fs_extra7 = require("fs-extra");
-var import_path8 = require("path");
-var SessionStore = class {
-  sessionsPath;
-  constructor(projectPath = process.cwd()) {
-    this.sessionsPath = (0, import_path8.join)(projectPath, ".tazz", "sessions.json");
+// src/core/services/MCPSessionManager.ts
+init_SessionStore();
+init_types();
+var import_execa5 = require("execa");
+var import_path13 = require("path");
+var import_fs_extra11 = require("fs-extra");
+var MCPSessionManager = class {
+  mcpService;
+  sessionStore;
+  worktreeManager;
+  logger;
+  constructor(mcpService, logger3) {
+    this.mcpService = mcpService;
+    this.sessionStore = new SessionStore();
+    this.worktreeManager = new GitWorktreeManager(logger3);
+    this.logger = logger3;
   }
-  async getAllSessions() {
+  async createSession(sessionId, context = {}) {
+    this.logger.info("Creating new session", { sessionId, context });
     try {
-      if (!await (0, import_fs_extra7.pathExists)(this.sessionsPath)) {
-        return [];
+      const existing = await this.sessionStore.getSession(sessionId);
+      if (existing) {
+        throw new SessionError(`Session ${sessionId} already exists`, { sessionId });
       }
-      const data = await (0, import_fs_extra7.readFile)(this.sessionsPath, "utf-8");
-      const sessionData = JSON.parse(data);
-      return sessionData.sessions || [];
-    } catch (error) {
-      throw new SessionError("Failed to read sessions file", {
-        path: this.sessionsPath
-      }, error);
-    }
-  }
-  async getSession(sessionId) {
-    const sessions = await this.getAllSessions();
-    return sessions.find((s) => s.id === sessionId) || null;
-  }
-  async saveSession(session) {
-    try {
-      const sessions = await this.getAllSessions();
-      const existingIndex = sessions.findIndex((s) => s.id === session.id);
-      if (existingIndex >= 0) {
-        sessions[existingIndex] = session;
-      } else {
-        sessions.push(session);
+      await this.worktreeManager.ensureWorktreeSetup();
+      const worktreeInfo = await this.worktreeManager.createWorktree(sessionId, context.customBranch);
+      const session = {
+        id: sessionId,
+        branch: worktreeInfo.branchName,
+        worktreePath: worktreeInfo.worktreePath,
+        status: "active" /* ACTIVE */,
+        createdAt: /* @__PURE__ */ new Date(),
+        lastActive: /* @__PURE__ */ new Date(),
+        agents: [],
+        tasks: this.createTasksFromContext(context),
+        metadata: {}
+      };
+      if (context.enableJiraIntegration && this.isJiraTicket(sessionId)) {
+        await this.enrichWithJiraContext(session);
       }
-      const sessionData = {
-        sessions,
-        lastUpdated: (/* @__PURE__ */ new Date()).toISOString()
-      };
-      await (0, import_fs_extra7.ensureFile)(this.sessionsPath);
-      await (0, import_fs_extra7.writeFile)(this.sessionsPath, JSON.stringify(sessionData, null, 2));
+      await this.sessionStore.saveSession(session);
+      await this.setupSessionDirectory(session);
+      this.logger.info("Session created successfully", { sessionId });
+      return session;
     } catch (error) {
-      throw new SessionError("Failed to save session", {
-        sessionId: session.id,
-        path: this.sessionsPath
-      }, error);
+      this.logger.error("Failed to create session", error, { sessionId });
+      throw error;
     }
   }
-  async removeSession(sessionId) {
-    try {
-      const sessions = await this.getAllSessions();
-      const filteredSessions = sessions.filter((s) => s.id !== sessionId);
-      const sessionData = {
-        sessions: filteredSessions,
-        lastUpdated: (/* @__PURE__ */ new Date()).toISOString()
-      };
-      await (0, import_fs_extra7.writeFile)(this.sessionsPath, JSON.stringify(sessionData, null, 2));
-    } catch (error) {
-      throw new SessionError("Failed to remove session", {
-        sessionId,
-        path: this.sessionsPath
-      }, error);
-    }
-  }
-  async updateSessionStatus(sessionId, status) {
-    const session = await this.getSession(sessionId);
+  async attachToSession(sessionId) {
+    const session = await this.sessionStore.getSession(sessionId);
     if (!session) {
-      throw new SessionError(`Session ${sessionId} not found`);
+      throw new SessionError(`Session ${sessionId} not found`, { sessionId });
     }
-    session.status = status;
     session.lastActive = /* @__PURE__ */ new Date();
-    await this.saveSession(session);
+    session.status = "active" /* ACTIVE */;
+    await this.sessionStore.saveSession(session);
+    return session;
+  }
+  async setupTmuxSession(session) {
+    const tmuxSessionName = `tazz_${session.id}`;
+    try {
+      await (0, import_execa5.execa)("tmux", [
+        "new-session",
+        "-d",
+        "-s",
+        tmuxSessionName,
+        "-c",
+        session.worktreePath
+      ]);
+      await (0, import_execa5.execa)("tmux", ["split-window", "-h", "-t", tmuxSessionName]);
+      await (0, import_execa5.execa)("tmux", ["split-window", "-v", "-t", `${tmuxSessionName}:0.1`]);
+      await (0, import_execa5.execa)("tmux", ["send-keys", "-t", `${tmuxSessionName}:0.0`, 'echo "Development Shell"', "Enter"]);
+      await (0, import_execa5.execa)("tmux", ["send-keys", "-t", `${tmuxSessionName}:0.1`, 'echo "Build/Test Watcher"', "Enter"]);
+      await (0, import_execa5.execa)("tmux", ["send-keys", "-t", `${tmuxSessionName}:0.2`, 'echo "Agent Console"', "Enter"]);
+      this.logger.info("Tmux session created", { sessionId: session.id, tmuxSessionName });
+    } catch (error) {
+      this.logger.error("Failed to create tmux session", error, { sessionId: session.id });
+      throw new SessionError("Failed to create tmux session", { sessionId: session.id }, error);
+    }
+  }
+  async setupAgentEnvironment(session) {
+    const agent = {
+      id: `agent_${session.id}`,
+      name: "Claude Agent",
+      type: "claude" /* CLAUDE */,
+      status: "starting" /* STARTING */,
+      lastActivity: /* @__PURE__ */ new Date(),
+      capabilities: ["code-generation", "file-modification", "testing"]
+    };
+    session.agents.push(agent);
+    await this.sessionStore.saveSession(session);
+  }
+  async enrichWithJiraContext(session) {
+    if (!this.mcpService.isAvailable("atlassian")) {
+      this.logger.warn("Jira integration requested but Atlassian MCP not available");
+      return;
+    }
+    try {
+      const ticketInfo = await this.mcpService.callMCP("atlassian", "jira_get_issue", {
+        issueKey: session.id
+      });
+      session.metadata.jira = {
+        title: ticketInfo.fields.summary,
+        description: ticketInfo.fields.description,
+        priority: ticketInfo.fields.priority.name,
+        assignee: ticketInfo.fields.assignee?.displayName,
+        status: ticketInfo.fields.status.name,
+        type: ticketInfo.fields.issuetype.name,
+        storyPoints: ticketInfo.fields.storyPoints
+      };
+      await this.createJiraBasedTodo(session, ticketInfo);
+      this.logger.info("Session enriched with Jira context", { sessionId: session.id });
+    } catch (error) {
+      this.logger.warn("Failed to enrich session with Jira context", { error: error.message, sessionId: session.id });
+    }
+  }
+  async attachToTmuxSession(sessionId) {
+    const tmuxSessionName = `tazz_${sessionId}`;
+    try {
+      await (0, import_execa5.execa)("tmux", ["attach-session", "-t", tmuxSessionName], {
+        stdio: "inherit"
+      });
+    } catch (error) {
+      throw new SessionError(`Failed to attach to tmux session: ${tmuxSessionName}`, { sessionId }, error);
+    }
+  }
+  /**
+   * Stops a session and cleans up its worktree
+   */
+  async stopSession(sessionId) {
+    this.logger.info("Stopping session", { sessionId });
+    try {
+      const session = await this.sessionStore.getSession(sessionId);
+      if (!session) {
+        throw new SessionError(`Session ${sessionId} not found`, { sessionId });
+      }
+      session.status = "stopped" /* STOPPED */;
+      session.lastActive = /* @__PURE__ */ new Date();
+      await this.sessionStore.saveSession(session);
+      try {
+        const tmuxSessionName = `tazz_${sessionId}`;
+        await (0, import_execa5.execa)("tmux", ["kill-session", "-t", tmuxSessionName]);
+        this.logger.info("Tmux session stopped", { sessionId, tmuxSessionName });
+      } catch (tmuxError) {
+        this.logger.warn("Failed to stop tmux session (may not exist)", { error: tmuxError.message, sessionId });
+      }
+      this.logger.info("Session stopped successfully", { sessionId });
+    } catch (error) {
+      this.logger.error("Failed to stop session", error, { sessionId });
+      throw error;
+    }
+  }
+  /**
+   * Deletes a session and removes its worktree completely
+   */
+  async deleteSession(sessionId) {
+    this.logger.info("Deleting session", { sessionId });
+    try {
+      await this.stopSession(sessionId);
+      await this.worktreeManager.removeWorktree(sessionId);
+      await this.sessionStore.deleteSession(sessionId);
+      this.logger.info("Session deleted successfully", { sessionId });
+    } catch (error) {
+      this.logger.error("Failed to delete session", error, { sessionId });
+      throw error;
+    }
+  }
+  /**
+   * Lists all active worktrees managed by Tazz
+   */
+  async listManagedWorktrees() {
+    return await this.worktreeManager.listWorktrees();
+  }
+  createTasksFromContext(context) {
+    if (!context.tasks) return [];
+    return context.tasks.map((task, index) => ({
+      id: `task_${index + 1}`,
+      title: task,
+      description: "",
+      status: "todo",
+      priority: 1,
+      dependencies: []
+    }));
+  }
+  async setupSessionDirectory(session) {
+    const sessionDir = (0, import_path13.join)(session.worktreePath, ".tazz");
+    await (0, import_fs_extra11.ensureDir)(sessionDir);
+    await (0, import_fs_extra11.writeFile)(
+      (0, import_path13.join)(sessionDir, "session.json"),
+      JSON.stringify(session, null, 2)
+    );
+    await (0, import_fs_extra11.writeFile)(
+      (0, import_path13.join)(sessionDir, "tazz-todo.md"),
+      this.generateSessionTodo(session)
+    );
+  }
+  generateSessionTodo(session) {
+    let content = `# ${session.id}
+
+`;
+    if (session.metadata.jira) {
+      content += `## ${session.metadata.jira.title}
+
+`;
+      content += `**Priority:** ${session.metadata.jira.priority}
+`;
+      content += `**Status:** ${session.metadata.jira.status}
+
+`;
+      if (session.metadata.jira.description) {
+        content += `### Description
+${session.metadata.jira.description}
+
+`;
+      }
+    }
+    content += `## Tasks
+`;
+    if (session.tasks.length > 0) {
+      session.tasks.forEach((task) => {
+        content += `- [ ] ${task.title}
+`;
+      });
+    } else {
+      content += `- [ ] Analyze requirements
+`;
+      content += `- [ ] Implement solution
+`;
+      content += `- [ ] Write tests
+`;
+      content += `- [ ] Review and refine
+`;
+    }
+    return content;
+  }
+  async createJiraBasedTodo(session, ticketInfo) {
+  }
+  isJiraTicket(sessionId) {
+    return /^[A-Z]+-\d+$/.test(sessionId);
   }
 };
 
@@ -7584,12 +9000,17 @@ var StopCommand = class {
   async execute(sessionId) {
     console.log("");
     console.log(import_chalk8.default.yellow(`\u23F8\uFE0F  Stopping session: ${sessionId}`));
+    const spinner = (0, import_ora4.default)("Stopping session and cleaning up resources").start();
     try {
-      const sessionStore = new SessionStore();
-      await sessionStore.updateSessionStatus(sessionId, "stopped" /* STOPPED */);
+      const mcpService = new MCPIntegrationService(this.logger);
+      const sessionManager = new MCPSessionManager(mcpService, this.logger);
+      await sessionManager.stopSession(sessionId);
+      spinner.succeed("Session stopped successfully");
       console.log(import_chalk8.default.green(`\u2705 Session ${sessionId} stopped`));
-      console.log(import_chalk8.default.gray(`   Use 'tazz join ${sessionId}' to resume`));
+      console.log(import_chalk8.default.gray(`   Use 'tazz start ${sessionId}' to resume with existing worktree`));
+      console.log(import_chalk8.default.gray(`   Use 'tazz clean --session ${sessionId}' to completely remove worktree`));
     } catch (error) {
+      spinner.fail("Failed to stop session");
       console.log(import_chalk8.default.red(`\u274C Failed to stop session: ${error.message}`));
       process.exit(1);
     }
@@ -7599,33 +9020,42 @@ var StopCommand = class {
 // src/cli/commands/delete.ts
 var import_commander7 = require("commander");
 var import_chalk9 = __toESM(require("chalk"));
+var import_ora5 = __toESM(require("ora"));
 var import_inquirer = __toESM(require("inquirer"));
-var import_child_process6 = require("child_process");
-var import_util8 = require("util");
-var execAsync5 = (0, import_util8.promisify)(import_child_process6.exec);
+var import_child_process5 = require("child_process");
+var import_util7 = require("util");
+var execAsync4 = (0, import_util7.promisify)(import_child_process5.exec);
 var DeleteCommand = class {
   logger = getLogger();
   build() {
-    return new import_commander7.Command("delete").alias("rm").alias("destroy").description("\u{1F5D1}\uFE0F  Delete a Tazz process").argument("<process-id>", "Process ID to delete (e.g., instance_task-1)").option("-f, --force", "Skip confirmation prompt").action(async (processId, options) => {
-      await this.execute(processId, options);
+    return new import_commander7.Command("delete").alias("rm").alias("destroy").description("\u{1F5D1}\uFE0F  Completely delete a session and its worktree").argument("<session-id>", "Session ID to delete (e.g., JIRA-123, feature-name)").option("-f, --force", "Skip confirmation prompt").action(async (sessionId, options) => {
+      await this.execute(sessionId, options);
     });
   }
-  async execute(processId, options = {}) {
+  async execute(sessionId, options = {}) {
     console.log("");
+    console.log(import_chalk9.default.red(`\u{1F5D1}\uFE0F  Deleting session: ${sessionId}`));
     try {
-      const tmuxSessionName = `tazz_${processId}`;
-      try {
-        await execAsync5(`tmux has-session -t ${tmuxSessionName}`);
-      } catch (error) {
-        console.log(import_chalk9.default.red(`\u274C Tazz process not found: ${processId}`));
-        await this.listAvailableProcesses();
+      const mcpService = new MCPIntegrationService(this.logger);
+      const sessionManager = new MCPSessionManager(mcpService, this.logger);
+      const sessionStore = sessionManager["sessionStore"] || new (await Promise.resolve().then(() => (init_SessionStore(), SessionStore_exports))).SessionStore();
+      const session = await sessionStore.getSession(sessionId);
+      if (!session) {
+        console.log(import_chalk9.default.red(`\u274C Session not found: ${sessionId}`));
+        await this.listAvailableSessions();
         process.exit(1);
       }
       if (!options.force) {
+        console.log("");
+        console.log(import_chalk9.default.yellow("\u26A0\uFE0F  This will permanently delete:"));
+        console.log(import_chalk9.default.gray(`   \u2022 Git worktree: ${session.worktreePath}`));
+        console.log(import_chalk9.default.gray("   \u2022 Tmux session"));
+        console.log(import_chalk9.default.gray("   \u2022 All session data"));
+        console.log("");
         const { confirmed } = await import_inquirer.default.prompt([{
           type: "confirm",
           name: "confirmed",
-          message: `Are you sure you want to delete Tazz process ${processId}? This will kill the tmux session.`,
+          message: `Are you sure you want to delete session ${sessionId}?`,
           default: false
         }]);
         if (!confirmed) {
@@ -7633,23 +9063,39 @@ var DeleteCommand = class {
           return;
         }
       }
-      console.log(import_chalk9.default.yellow(`\u{1F5D1}\uFE0F  Deleting Tazz process: ${processId}`));
-      await execAsync5(`tmux kill-session -t ${tmuxSessionName}`);
-      console.log(import_chalk9.default.green(`\u2705 Tazz process ${processId} deleted`));
+      const spinner = (0, import_ora5.default)("Deleting session and cleaning up all resources").start();
+      await sessionManager.deleteSession(sessionId);
+      spinner.succeed("Session deleted successfully");
+      console.log(import_chalk9.default.green(`\u2705 Session ${sessionId} has been completely removed`));
+      console.log(import_chalk9.default.gray("   All worktree data has been permanently deleted"));
     } catch (error) {
-      console.log(import_chalk9.default.red(`\u274C Failed to delete process: ${error.message}`));
+      console.log(import_chalk9.default.red(`\u274C Failed to delete session: ${error.message}`));
+      console.log("");
+      console.log(import_chalk9.default.yellow("\u{1F4A1} Try these commands:"));
+      console.log(import_chalk9.default.gray("   \u2022 tazz list - Check if session exists"));
+      console.log(import_chalk9.default.gray("   \u2022 tazz clean --worktrees - Clean abandoned worktrees"));
+      console.log(import_chalk9.default.gray("   \u2022 git worktree list - Check git worktrees manually"));
       this.logger.error("Delete failed", error);
       process.exit(1);
     }
   }
-  async listAvailableProcesses() {
+  async listAvailableSessions() {
     try {
-      const { stdout } = await execAsync5("tmux list-sessions | grep tazz");
+      const mcpService = new MCPIntegrationService(this.logger);
+      const sessionManager = new MCPSessionManager(mcpService, this.logger);
+      const sessionStore = sessionManager["sessionStore"] || new (await Promise.resolve().then(() => (init_SessionStore(), SessionStore_exports))).SessionStore();
+      const sessions = await sessionStore.getAllSessions();
       console.log("");
-      console.log(import_chalk9.default.yellow("Available Tazz processes:"));
-      console.log(import_chalk9.default.gray(stdout));
+      if (sessions.length > 0) {
+        console.log(import_chalk9.default.yellow("Available sessions:"));
+        sessions.forEach((session) => {
+          console.log(import_chalk9.default.gray(`   \u2022 ${session.id} (${session.status})`));
+        });
+      } else {
+        console.log(import_chalk9.default.gray("No sessions found"));
+      }
     } catch {
-      console.log(import_chalk9.default.gray("No active Tazz processes found"));
+      console.log(import_chalk9.default.gray("Unable to list sessions"));
     }
   }
 };
@@ -7657,11 +9103,11 @@ var DeleteCommand = class {
 // src/cli/commands/health.ts
 var import_commander8 = require("commander");
 var import_chalk10 = __toESM(require("chalk"));
-var import_ora4 = __toESM(require("ora"));
-var import_child_process7 = require("child_process");
-var import_util9 = require("util");
-var import_fs_extra8 = require("fs-extra");
-var execAsync6 = (0, import_util9.promisify)(import_child_process7.exec);
+var import_ora6 = __toESM(require("ora"));
+var import_child_process6 = require("child_process");
+var import_util8 = require("util");
+var import_fs_extra12 = require("fs-extra");
+var execAsync5 = (0, import_util8.promisify)(import_child_process6.exec);
 var HealthCommand = class {
   logger = getLogger();
   build() {
@@ -7686,7 +9132,7 @@ var HealthCommand = class {
     ];
     const results = [];
     for (const healthCheck of healthChecks) {
-      const spinner = (0, import_ora4.default)(`Checking ${healthCheck.name}`).start();
+      const spinner = (0, import_ora6.default)(`Checking ${healthCheck.name}`).start();
       try {
         const result = await healthCheck.check();
         results.push({ name: healthCheck.name, ...result });
@@ -7735,7 +9181,7 @@ var HealthCommand = class {
   }
   async checkNode() {
     try {
-      const { stdout } = await execAsync6("node --version");
+      const { stdout } = await execAsync5("node --version");
       const version = stdout.trim();
       const majorVersion = parseInt(version.replace("v", "").split(".")[0]);
       if (majorVersion >= 18) {
@@ -7767,9 +9213,9 @@ var HealthCommand = class {
   }
   async checkPackageManager() {
     try {
-      const { stdout: npmVersion } = await execAsync6("npm --version");
+      const { stdout: npmVersion } = await execAsync5("npm --version");
       try {
-        const { stdout: yarnVersion } = await execAsync6("yarn --version");
+        const { stdout: yarnVersion } = await execAsync5("yarn --version");
         return {
           status: "pass",
           message: `npm ${npmVersion.trim()}, yarn ${yarnVersion.trim()}`,
@@ -7792,11 +9238,11 @@ var HealthCommand = class {
   }
   async checkGit() {
     try {
-      const { stdout } = await execAsync6("git --version");
+      const { stdout } = await execAsync5("git --version");
       const version = stdout.trim().replace("git version ", "");
       try {
-        const { stdout: userName } = await execAsync6("git config user.name");
-        const { stdout: userEmail } = await execAsync6("git config user.email");
+        const { stdout: userName } = await execAsync5("git config user.name");
+        const { stdout: userEmail } = await execAsync5("git config user.email");
         if (userName.trim() && userEmail.trim()) {
           return {
             status: "pass",
@@ -7827,7 +9273,7 @@ var HealthCommand = class {
   }
   async checkTmux(autoFix) {
     try {
-      const { stdout } = await execAsync6("tmux -V");
+      const { stdout } = await execAsync5("tmux -V");
       const version = stdout.trim();
       return {
         status: "pass",
@@ -7857,7 +9303,7 @@ var HealthCommand = class {
   }
   async checkClaudeCode() {
     try {
-      const { stdout } = await execAsync6("claude --version");
+      const { stdout } = await execAsync5("claude --version");
       const version = stdout.trim();
       return {
         status: "pass",
@@ -7881,7 +9327,7 @@ var HealthCommand = class {
   }
   async checkTazzConfig() {
     const tazzTmpDir = "/tmp/tazz-tmp";
-    const configExists = await (0, import_fs_extra8.pathExists)(tazzTmpDir);
+    const configExists = await (0, import_fs_extra12.pathExists)(tazzTmpDir);
     if (configExists) {
       return {
         status: "pass",
@@ -7898,7 +9344,7 @@ var HealthCommand = class {
   }
   async checkSystemResources() {
     try {
-      const { stdout } = await execAsync6("df -h /tmp");
+      const { stdout } = await execAsync5("df -h /tmp");
       const lines = stdout.trim().split("\n");
       const tmpLine = lines[1];
       const parts = tmpLine.split(/\s+/);
@@ -7934,9 +9380,9 @@ var HealthCommand = class {
   }
   async checkNetwork() {
     try {
-      await execAsync6("ping -c 1 -W 5 8.8.8.8");
+      await execAsync5("ping -c 1 -W 5 8.8.8.8");
       try {
-        await execAsync6("curl -s --max-time 10 https://registry.npmjs.org");
+        await execAsync5("curl -s --max-time 10 https://registry.npmjs.org");
         return {
           status: "pass",
           message: "Internet connectivity available",
@@ -8016,7 +9462,7 @@ var HealthCommand = class {
   async autoFix(failedChecks) {
     for (const check of failedChecks) {
       if (check.name === "tmux") {
-        const spinner = (0, import_ora4.default)("Installing tmux").start();
+        const spinner = (0, import_ora6.default)("Installing tmux").start();
         try {
           const installed = await DependencyManager.installTmux();
           if (installed) {
@@ -8403,16 +9849,16 @@ var InteractiveCommand = class {
 // src/cli/commands/clean.ts
 var import_commander10 = require("commander");
 var import_chalk12 = __toESM(require("chalk"));
-var import_ora5 = __toESM(require("ora"));
-var import_fs_extra9 = require("fs-extra");
-var import_path9 = require("path");
-var import_child_process8 = require("child_process");
-var import_util10 = require("util");
-var execAsync7 = (0, import_util10.promisify)(import_child_process8.exec);
+var import_ora7 = __toESM(require("ora"));
+var import_fs_extra13 = require("fs-extra");
+var import_path14 = require("path");
+var import_child_process7 = require("child_process");
+var import_util9 = require("util");
+var execAsync6 = (0, import_util9.promisify)(import_child_process7.exec);
 var CleanCommand = class {
   logger = getLogger();
   build() {
-    return new import_commander10.Command("clean").description("\u{1F9F9} Clean cache and temporary files").option("--deep", "Deep clean including logs and configuration").option("--dry-run", "Show what would be cleaned without actually cleaning").action(async (options) => {
+    return new import_commander10.Command("clean").description("\u{1F9F9} Clean cache, temporary files, and worktrees").option("--deep", "Deep clean including logs and configuration").option("--dry-run", "Show what would be cleaned without actually cleaning").option("--session <session-id>", "Clean specific session and its worktree").option("--worktrees", "Clean all abandoned worktrees").action(async (options) => {
       await this.execute(options);
     });
   }
@@ -8458,7 +9904,7 @@ var CleanCommand = class {
     let totalCleaned = 0;
     let totalSize = 0;
     for (const task of cleanupTasks) {
-      const spinner = (0, import_ora5.default)(`Cleaning ${task.name}`).start();
+      const spinner = (0, import_ora7.default)(`Cleaning ${task.name}`).start();
       try {
         const result = await task.action();
         totalCleaned += result.count;
@@ -8489,20 +9935,20 @@ var CleanCommand = class {
   }
   async cleanTempWorktrees(dryRun) {
     const tazzDir = getTazzDir();
-    const tempDir = (0, import_path9.join)(tazzDir, "temp");
-    if (!await (0, import_fs_extra9.pathExists)(tempDir)) {
+    const tempDir = (0, import_path14.join)(tazzDir, "temp");
+    if (!await (0, import_fs_extra13.pathExists)(tempDir)) {
       return { count: 0, size: 0 };
     }
-    const items = await (0, import_fs_extra9.readdir)(tempDir);
+    const items = await (0, import_fs_extra13.readdir)(tempDir);
     let count = 0;
     let size = 0;
     for (const item of items) {
-      const itemPath = (0, import_path9.join)(tempDir, item);
+      const itemPath = (0, import_path14.join)(tempDir, item);
       try {
-        const stats = await (0, import_fs_extra9.stat)(itemPath);
+        const stats = await (0, import_fs_extra13.stat)(itemPath);
         size += stats.size;
         if (!dryRun) {
-          await (0, import_fs_extra9.remove)(itemPath);
+          await (0, import_fs_extra13.remove)(itemPath);
         }
         count++;
       } catch (error) {
@@ -8513,14 +9959,14 @@ var CleanCommand = class {
   }
   async cleanOrphanedTmuxSessions(dryRun) {
     try {
-      const { stdout } = await execAsync7('tmux list-sessions -F "#{session_name}" 2>/dev/null || true');
+      const { stdout } = await execAsync6('tmux list-sessions -F "#{session_name}" 2>/dev/null || true');
       const sessions = stdout.trim().split("\n").filter((s) => s.startsWith("tazz_"));
       const orphanedSessions = sessions.filter((s) => s.includes("orphaned"));
       let count = 0;
       for (const session of orphanedSessions) {
         if (!dryRun) {
           try {
-            await execAsync7(`tmux kill-session -t ${session}`);
+            await execAsync6(`tmux kill-session -t ${session}`);
             count++;
           } catch (error) {
           }
@@ -8535,24 +9981,24 @@ var CleanCommand = class {
   }
   async cleanOldSessionData(dryRun) {
     const tazzDir = getTazzDir();
-    const projectsDir = (0, import_path9.join)(tazzDir, "projects");
-    if (!await (0, import_fs_extra9.pathExists)(projectsDir)) {
+    const projectsDir = (0, import_path14.join)(tazzDir, "projects");
+    if (!await (0, import_fs_extra13.pathExists)(projectsDir)) {
       return { count: 0, size: 0 };
     }
-    const projects = await (0, import_fs_extra9.readdir)(projectsDir);
+    const projects = await (0, import_fs_extra13.readdir)(projectsDir);
     let count = 0;
     let size = 0;
     const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1e3;
     for (const project of projects) {
-      const projectPath = (0, import_path9.join)(projectsDir, project);
-      const sessionsFile = (0, import_path9.join)(projectPath, "sessions.json");
-      if (await (0, import_fs_extra9.pathExists)(sessionsFile)) {
+      const projectPath = (0, import_path14.join)(projectsDir, project);
+      const sessionsFile = (0, import_path14.join)(projectPath, "sessions.json");
+      if (await (0, import_fs_extra13.pathExists)(sessionsFile)) {
         try {
-          const stats = await (0, import_fs_extra9.stat)(sessionsFile);
+          const stats = await (0, import_fs_extra13.stat)(sessionsFile);
           if (stats.mtime.getTime() < oneWeekAgo) {
             size += stats.size;
             if (!dryRun) {
-              await (0, import_fs_extra9.remove)(projectPath);
+              await (0, import_fs_extra13.remove)(projectPath);
             }
             count++;
           }
@@ -8565,20 +10011,20 @@ var CleanCommand = class {
   }
   async cleanCacheFiles(dryRun) {
     const tazzDir = getTazzDir();
-    const cacheDir = (0, import_path9.join)(tazzDir, "cache");
-    if (!await (0, import_fs_extra9.pathExists)(cacheDir)) {
+    const cacheDir = (0, import_path14.join)(tazzDir, "cache");
+    if (!await (0, import_fs_extra13.pathExists)(cacheDir)) {
       return { count: 0, size: 0 };
     }
-    const items = await (0, import_fs_extra9.readdir)(cacheDir);
+    const items = await (0, import_fs_extra13.readdir)(cacheDir);
     let count = 0;
     let size = 0;
     for (const item of items) {
-      const itemPath = (0, import_path9.join)(cacheDir, item);
+      const itemPath = (0, import_path14.join)(cacheDir, item);
       try {
-        const stats = await (0, import_fs_extra9.stat)(itemPath);
+        const stats = await (0, import_fs_extra13.stat)(itemPath);
         size += stats.size;
         if (!dryRun) {
-          await (0, import_fs_extra9.remove)(itemPath);
+          await (0, import_fs_extra13.remove)(itemPath);
         }
         count++;
       } catch (error) {
@@ -8589,22 +10035,22 @@ var CleanCommand = class {
   }
   async cleanLogFiles(dryRun) {
     const tazzDir = getTazzDir();
-    const logsDir = (0, import_path9.join)(tazzDir, "logs");
-    if (!await (0, import_fs_extra9.pathExists)(logsDir)) {
+    const logsDir = (0, import_path14.join)(tazzDir, "logs");
+    if (!await (0, import_fs_extra13.pathExists)(logsDir)) {
       return { count: 0, size: 0 };
     }
-    const logFiles = await (0, import_fs_extra9.readdir)(logsDir);
+    const logFiles = await (0, import_fs_extra13.readdir)(logsDir);
     let count = 0;
     let size = 0;
     const oneMonthAgo = Date.now() - 30 * 24 * 60 * 60 * 1e3;
     for (const logFile of logFiles) {
-      const logPath = (0, import_path9.join)(logsDir, logFile);
+      const logPath = (0, import_path14.join)(logsDir, logFile);
       try {
-        const stats = await (0, import_fs_extra9.stat)(logPath);
+        const stats = await (0, import_fs_extra13.stat)(logPath);
         if (stats.mtime.getTime() < oneMonthAgo) {
           size += stats.size;
           if (!dryRun) {
-            await (0, import_fs_extra9.remove)(logPath);
+            await (0, import_fs_extra13.remove)(logPath);
           }
           count++;
         }
@@ -8616,22 +10062,22 @@ var CleanCommand = class {
   }
   async cleanConfigBackups(dryRun) {
     const tazzDir = getTazzDir();
-    const backupDir = (0, import_path9.join)(tazzDir, "backups");
-    if (!await (0, import_fs_extra9.pathExists)(backupDir)) {
+    const backupDir = (0, import_path14.join)(tazzDir, "backups");
+    if (!await (0, import_fs_extra13.pathExists)(backupDir)) {
       return { count: 0, size: 0 };
     }
-    const backupFiles = await (0, import_fs_extra9.readdir)(backupDir);
+    const backupFiles = await (0, import_fs_extra13.readdir)(backupDir);
     let count = 0;
     let size = 0;
     const twoWeeksAgo = Date.now() - 14 * 24 * 60 * 60 * 1e3;
     for (const backupFile of backupFiles) {
-      const backupPath = (0, import_path9.join)(backupDir, backupFile);
+      const backupPath = (0, import_path14.join)(backupDir, backupFile);
       try {
-        const stats = await (0, import_fs_extra9.stat)(backupPath);
+        const stats = await (0, import_fs_extra13.stat)(backupPath);
         if (stats.mtime.getTime() < twoWeeksAgo) {
           size += stats.size;
           if (!dryRun) {
-            await (0, import_fs_extra9.remove)(backupPath);
+            await (0, import_fs_extra13.remove)(backupPath);
           }
           count++;
         }
@@ -8649,7 +10095,351 @@ var CleanCommand = class {
   }
 };
 
+// src/cli/commands/done.ts
+var import_commander11 = require("commander");
+var import_chalk13 = __toESM(require("chalk"));
+var import_fs_extra14 = require("fs-extra");
+var import_path15 = require("path");
+var import_child_process8 = require("child_process");
+var import_util10 = require("util");
+var import_inquirer3 = __toESM(require("inquirer"));
+init_SessionStore();
+init_types();
+var execAsync7 = (0, import_util10.promisify)(import_child_process8.exec);
+var DoneCommand = class {
+  logger = getLogger();
+  build() {
+    return new import_commander11.Command("done").description("\u{1F3AF} Mark session/task as complete and clean up resources").argument("[session-id]", "Session ID to complete (optional - will prompt if not provided)").option("-a, --all", "Mark all active sessions as complete").option("--keep-worktree", "Keep git worktree after completion").option("--keep-sessions", "Keep tmux sessions running").option("--no-todo-update", "Skip updating todo file").option("-f, --force", "Force completion without prompts").option("--debug", "Show detailed debugging information").action(async (sessionId, options = {}) => {
+      await this.execute(sessionId, options);
+    });
+  }
+  async execute(sessionId, options = {}) {
+    console.log("");
+    console.log(import_chalk13.default.bold.cyan("\u{1F3AF} Tazz Session Completion"));
+    console.log("");
+    try {
+      const sessionStore = new SessionStore();
+      const orchestrator = new TmuxSessionOrchestrator(this.logger);
+      const worktreeManager = new GitWorktreeManager(this.logger);
+      const activeSessions = await this.getActiveSessions();
+      const isProjectInitialized = await this.isProjectInitialized();
+      if (!isProjectInitialized && activeSessions.length > 0) {
+        console.log(import_chalk13.default.yellow("\u26A0\uFE0F  Project not initialized, but found orphaned Tazz sessions."));
+        console.log(import_chalk13.default.gray("   Will clean up orphaned sessions only."));
+        console.log("");
+      } else if (!isProjectInitialized) {
+        throw new ValidationError('Project not initialized. Run "tazz make" first.');
+      }
+      if (options.debug) {
+        console.log(import_chalk13.default.yellow("\u{1F50D} Debug: Active sessions found:"));
+        activeSessions.forEach((session) => {
+          console.log(`   \u2022 ${session.fullId || session.sessionName} (sessionName: ${session.sessionName}, taskName: ${session.taskName})`);
+        });
+        console.log("");
+      }
+      if (activeSessions.length === 0) {
+        console.log(import_chalk13.default.yellow("\u{1F4ED} No active Tazz sessions found"));
+        console.log(import_chalk13.default.gray("Start a new session with:"), import_chalk13.default.cyan("tazz run"));
+        console.log("");
+        return;
+      }
+      let sessionsToComplete = [];
+      if (options.all) {
+        if (!options.force) {
+          const { confirmAll } = await import_inquirer3.default.prompt([{
+            type: "confirm",
+            name: "confirmAll",
+            message: `Complete all ${activeSessions.length} active sessions?`,
+            default: false
+          }]);
+          if (!confirmAll) {
+            console.log(import_chalk13.default.gray("Operation cancelled"));
+            return;
+          }
+        }
+        const uniqueSessionNames = [...new Set(activeSessions.map((s) => s.sessionName))];
+        sessionsToComplete = uniqueSessionNames;
+      } else if (sessionId) {
+        const session = activeSessions.find(
+          (s) => s.sessionName === sessionId || s.fullId === sessionId
+        );
+        if (!session) {
+          console.log(import_chalk13.default.red(`\u274C Session not found: ${sessionId}`));
+          await this.displayAvailableSessions(activeSessions);
+          return;
+        }
+        sessionsToComplete = [session.sessionName];
+      } else {
+        const { selectedSessions } = await import_inquirer3.default.prompt([{
+          type: "checkbox",
+          name: "selectedSessions",
+          message: "Select sessions to complete:",
+          choices: activeSessions.map((session) => ({
+            name: `${session.sessionName} ${import_chalk13.default.gray(`(${session.taskName || "main"})`)}`,
+            value: session.sessionName,
+            checked: false
+          }))
+        }]);
+        if (selectedSessions.length === 0) {
+          console.log(import_chalk13.default.gray("No sessions selected"));
+          return;
+        }
+        sessionsToComplete = selectedSessions;
+      }
+      console.log(import_chalk13.default.bold("\u{1F4CB} Completion Plan:"));
+      sessionsToComplete.forEach((session, i) => {
+        console.log(import_chalk13.default.gray(`   ${i + 1}.`), import_chalk13.default.cyan(session));
+      });
+      console.log("");
+      if (!options.keepSessions) {
+        console.log(import_chalk13.default.gray("\u2022 Will clean up tmux sessions"));
+      }
+      if (!options.keepWorktree) {
+        console.log(import_chalk13.default.gray("\u2022 Will remove git worktrees"));
+      }
+      if (options.todoUpdate !== false) {
+        console.log(import_chalk13.default.gray("\u2022 Will update todo file to mark tasks complete"));
+      }
+      console.log("");
+      if (!options.force) {
+        const { confirmCompletion } = await import_inquirer3.default.prompt([{
+          type: "confirm",
+          name: "confirmCompletion",
+          message: "Proceed with completion?",
+          default: true
+        }]);
+        if (!confirmCompletion) {
+          console.log(import_chalk13.default.gray("Operation cancelled"));
+          return;
+        }
+      }
+      const summary = await this.completeSessions(
+        sessionsToComplete,
+        activeSessions,
+        orchestrator,
+        worktreeManager,
+        options
+      );
+      this.displayCompletionSummary(summary);
+      if (options.debug) {
+        console.log(import_chalk13.default.yellow("\u{1F50D} Debug: Verifying cleanup..."));
+        const remainingSessions = await this.getActiveSessions();
+        if (remainingSessions.length > 0) {
+          console.log(import_chalk13.default.yellow(`   Still found ${remainingSessions.length} active sessions:`));
+          remainingSessions.forEach((session) => {
+            console.log(import_chalk13.default.gray(`     \u2022 ${session.fullId || session.sessionName}`));
+          });
+        } else {
+          console.log(import_chalk13.default.green("   \u2705 All sessions cleaned up successfully"));
+        }
+        console.log("");
+      }
+    } catch (error) {
+      this.logger.error("Session completion failed", error);
+      if (error instanceof ValidationError) {
+        console.log(import_chalk13.default.red(`\u274C ${error.message}`));
+      } else if (error instanceof TazzError) {
+        console.log(import_chalk13.default.red(`\u274C ${error.constructor.name}: ${error.message}`));
+      } else {
+        console.log(import_chalk13.default.red(`\u274C Unexpected error: ${error.message}`));
+      }
+      process.exit(1);
+    }
+  }
+  async completeSessions(sessionsToComplete, activeSessions, orchestrator, worktreeManager, options) {
+    const summary = {
+      completedTasks: 0,
+      cleanedSessions: 0,
+      removedWorktrees: 0,
+      updatedTodoFile: false,
+      errors: []
+    };
+    const worktreesToRemove = /* @__PURE__ */ new Set();
+    for (const sessionName of sessionsToComplete) {
+      try {
+        console.log(import_chalk13.default.cyan(`\u{1F504} Completing session: ${sessionName}`));
+        const relatedSessions = activeSessions.filter(
+          (s) => s.sessionName === sessionName || s.fullId === sessionName || s.fullId && s.fullId.startsWith(sessionName + "_") || s.sessionName && sessionName.startsWith(s.sessionName)
+        );
+        console.log(import_chalk13.default.gray(`   Found ${relatedSessions.length} related sessions`));
+        if (options.debug) {
+          relatedSessions.forEach((session) => {
+            console.log(import_chalk13.default.yellow(`     \u2192 ${session.fullId || session.sessionName}`));
+          });
+        }
+        if (!options.keepSessions) {
+          for (const session of relatedSessions) {
+            try {
+              const sessionId = session.fullId || session.sessionName;
+              console.log(import_chalk13.default.gray(`   Stopping tmux session: tazz_${sessionId}`));
+              await orchestrator.stopSession(sessionId);
+              summary.cleanedSessions++;
+            } catch (error) {
+              const errorMsg = `Failed to stop tmux session ${session.fullId || session.sessionName}: ${error.message}`;
+              console.log(import_chalk13.default.yellow(`   \u26A0\uFE0F  ${errorMsg}`));
+              summary.errors.push(errorMsg);
+            }
+          }
+        }
+        if (!options.keepWorktree) {
+          relatedSessions.forEach((session) => {
+            if (session.worktree) {
+              worktreesToRemove.add(session.worktree);
+            }
+          });
+        }
+        summary.completedTasks++;
+      } catch (error) {
+        summary.errors.push(`Failed to complete session ${sessionName}: ${error.message}`);
+      }
+    }
+    if (!options.keepWorktree) {
+      for (const worktreePath of worktreesToRemove) {
+        try {
+          const sessionId = worktreePath.split("/").pop() || "unknown";
+          await worktreeManager.removeWorktree(sessionId);
+          summary.removedWorktrees++;
+        } catch (error) {
+          summary.errors.push(`Failed to remove worktree ${worktreePath}: ${error.message}`);
+        }
+      }
+    }
+    if (options.todoUpdate !== false && await this.isProjectInitialized()) {
+      try {
+        await this.updateTodoFileCompletion(sessionsToComplete);
+        summary.updatedTodoFile = true;
+      } catch (error) {
+        summary.errors.push(`Failed to update todo file: ${error.message}`);
+      }
+    }
+    return summary;
+  }
+  async updateTodoFileCompletion(completedSessions) {
+    const todoPath = (0, import_path15.join)(process.cwd(), ".tazz", "tazz-todo.md");
+    if (!await (0, import_fs_extra14.pathExists)(todoPath)) {
+      return;
+    }
+    const content = await (0, import_fs_extra14.readFile)(todoPath, "utf-8");
+    let updatedContent = content;
+    for (const sessionName of completedSessions) {
+      const taskNameRegex = new RegExp(`^(\\s*TaskName:\\s*.+)$`, "gm");
+      updatedContent = updatedContent.replace(taskNameRegex, (match, taskLine) => {
+        const lines = updatedContent.split("\n");
+        const taskIndex = lines.findIndex((line) => line.includes(taskLine));
+        if (taskIndex >= 0) {
+          for (let i = taskIndex + 1; i < lines.length && i < taskIndex + 5; i++) {
+            if (lines[i].match(new RegExp(`^SessionName:\\s*${sessionName}\\s*$`, "i"))) {
+              return `${taskLine} \u2705 COMPLETED`;
+            }
+          }
+        }
+        return match;
+      });
+      const checkboxRegex = new RegExp(
+        `^(\\s*-\\s*\\[)\\s*(\\]\\s*.+Session name:\\s*${sessionName})`,
+        "gm"
+      );
+      updatedContent = updatedContent.replace(checkboxRegex, "$1x$2");
+    }
+    const timestamp = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
+    const completionNote = `
+<!-- Completed by Tazz CLI on ${timestamp} -->
+`;
+    if (!updatedContent.includes(completionNote)) {
+      updatedContent += completionNote;
+    }
+    await (0, import_fs_extra14.writeFile)(todoPath, updatedContent);
+  }
+  async getActiveSessions() {
+    try {
+      const { stdout } = await execAsync7('tmux list-sessions -F "#{session_name}" 2>/dev/null || true');
+      if (!stdout.trim()) {
+        return [];
+      }
+      return stdout.trim().split("\n").filter((name) => name.includes("tazz_")).map((sessionName) => {
+        const match = sessionName.match(/^tazz_(.+)$/);
+        if (match) {
+          const fullId = match[1];
+          const lastUnderscoreIndex = fullId.lastIndexOf("_");
+          if (lastUnderscoreIndex > 0) {
+            const instance = fullId.substring(0, lastUnderscoreIndex);
+            const taskName = fullId.substring(lastUnderscoreIndex + 1);
+            return {
+              sessionName: instance,
+              taskName,
+              fullId,
+              worktree: `gitworktree-projects/${fullId}`
+            };
+          } else {
+            return {
+              sessionName: fullId,
+              fullId,
+              worktree: `gitworktree-projects/${fullId}`
+            };
+          }
+        }
+        return { sessionName, fullId: sessionName };
+      });
+    } catch (error) {
+      return [];
+    }
+  }
+  async displayAvailableSessions(sessions) {
+    if (sessions.length === 0) return;
+    console.log("");
+    console.log(import_chalk13.default.yellow("Available sessions:"));
+    sessions.forEach((session) => {
+      console.log(
+        import_chalk13.default.gray("  \u2022"),
+        import_chalk13.default.cyan(session.fullId || session.sessionName),
+        session.taskName ? import_chalk13.default.gray(`(${session.taskName})`) : ""
+      );
+    });
+    console.log("");
+  }
+  displayCompletionSummary(summary) {
+    console.log("");
+    console.log(import_chalk13.default.bold.green("\u2705 Completion Summary"));
+    console.log("");
+    if (summary.completedTasks > 0) {
+      console.log(import_chalk13.default.green(`   ${summary.completedTasks} sessions completed`));
+    }
+    if (summary.cleanedSessions > 0) {
+      console.log(import_chalk13.default.green(`   ${summary.cleanedSessions} tmux sessions cleaned`));
+    }
+    if (summary.removedWorktrees > 0) {
+      console.log(import_chalk13.default.green(`   ${summary.removedWorktrees} worktrees removed`));
+    }
+    if (summary.updatedTodoFile) {
+      console.log(import_chalk13.default.green("   Todo file updated with completion status"));
+    }
+    if (summary.errors.length > 0) {
+      console.log("");
+      console.log(import_chalk13.default.yellow("\u26A0\uFE0F  Issues encountered:"));
+      summary.errors.forEach((error) => {
+        console.log(import_chalk13.default.gray("   \u2022"), import_chalk13.default.yellow(error));
+      });
+    }
+    console.log("");
+    console.log(import_chalk13.default.bold("\u{1F680} Next steps:"));
+    console.log(import_chalk13.default.gray("   \u2022 Run"), import_chalk13.default.cyan("tazz list"), import_chalk13.default.gray("to see remaining sessions"));
+    console.log(import_chalk13.default.gray("   \u2022 Run"), import_chalk13.default.cyan("tazz note"), import_chalk13.default.gray("to add new tasks"));
+    console.log(import_chalk13.default.gray("   \u2022 Run"), import_chalk13.default.cyan("tazz run"), import_chalk13.default.gray("to start new development sessions"));
+    console.log("");
+  }
+  async isProjectInitialized() {
+    const tazzDir = (0, import_path15.join)(process.cwd(), ".tazz");
+    return await (0, import_fs_extra14.pathExists)(tazzDir);
+  }
+  async checkProjectInitialized() {
+    if (!await this.isProjectInitialized()) {
+      throw new ValidationError('Project not initialized. Run "tazz make" first.');
+    }
+  }
+};
+
 // src/index.ts
+init_types();
 var logger2 = getLogger();
 var TAZZ_LOGO = `
         .       *        .        *
@@ -8665,7 +10455,7 @@ var TAZZ_LOGO = `
      *          .             *        .      *
 `;
 async function main() {
-  const program = new import_commander11.Command();
+  const program = new import_commander12.Command();
   program.name("tazz").description("\u{1F300} AI-powered development tool with git worktrees, tmux sessions, and MCP integration").version("1.0.0").configureHelp({
     sortSubcommands: true,
     subcommandTerm: (cmd) => cmd.name() + " " + cmd.usage()
@@ -8690,21 +10480,24 @@ async function main() {
   program.addCommand(new DeleteCommand().build());
   program.addCommand(new HealthCommand().build());
   program.addCommand(new CleanCommand().build());
+  program.addCommand(new DoneCommand().build());
   program.command("interactive", { isDefault: false }).alias("i").description("\u{1F300} Interactive Tazz CLI tool menu").action(async () => {
     const interactiveCmd = new InteractiveCommand();
     await interactiveCmd.execute();
   });
   program.on("--help", () => {
     console.log("");
-    console.log(import_chalk13.default.cyan("Examples:"));
+    console.log(import_chalk14.default.cyan("Examples:"));
     console.log("  $ tazz                         Start interactive menu");
     console.log("  $ tazz make                    Setup Tazz in current project");
     console.log("  $ tazz note                    Edit tasks and prompts");
-    console.log("  $ tazz run feature-auth        Start development instance");
+    console.log("  $ tazz run                     Start development sessions from todo");
+    console.log("  $ tazz list                    Show all active sessions");
+    console.log("  $ tazz join <session-id>       Join specific session");
+    console.log("  $ tazz done <session-id>       Complete session and cleanup");
     console.log("  $ tazz health                  Check system dependencies");
-    console.log("  $ tazz list                    Show all instances");
     console.log("");
-    console.log(import_chalk13.default.yellow("For more information, visit: https://github.com/tazz-dev/tazz-cli"));
+    console.log(import_chalk14.default.yellow("For more information, visit: https://github.com/Energma/tazz-cli"));
   });
   program.exitOverride();
   if (process.argv.length === 2) {
@@ -8717,7 +10510,7 @@ async function main() {
   } catch (error) {
     if (error.code === "commander.unknownCommand") {
       console.log("");
-      console.log(import_chalk13.default.red("\u274C Unknown command. Use --help to see available commands."));
+      console.log(import_chalk14.default.red("\u274C Unknown command. Use --help to see available commands."));
       console.log("");
       process.exit(1);
     }
@@ -8726,8 +10519,8 @@ async function main() {
     }
     logger2.error("Unexpected error occurred", error);
     console.log("");
-    console.log(import_chalk13.default.red("\u274C An unexpected error occurred. Check logs for details."));
-    console.log(import_chalk13.default.gray(`   Log file: /tmp/tazz-tmp/logs/tazz.log`));
+    console.log(import_chalk14.default.red("\u274C An unexpected error occurred. Check logs for details."));
+    console.log(import_chalk14.default.gray(`   Log file: /tmp/tazz-tmp/logs/tazz.log`));
     process.exit(1);
   }
 }
@@ -8736,19 +10529,19 @@ process.on("unhandledRejection", (reason, promise) => {
     promise: promise.toString()
   });
   console.log("");
-  console.log(import_chalk13.default.red("\u274C An unexpected error occurred. Check logs for details."));
+  console.log(import_chalk14.default.red("\u274C An unexpected error occurred. Check logs for details."));
   process.exit(1);
 });
 process.on("uncaughtException", (error) => {
   logger2.error("Uncaught Exception", error);
   console.log("");
-  console.log(import_chalk13.default.red("\u274C A critical error occurred. Check logs for details."));
+  console.log(import_chalk14.default.red("\u274C A critical error occurred. Check logs for details."));
   process.exit(1);
 });
 if (require.main === module) {
-  console.log(import_chalk13.default.cyan(TAZZ_LOGO));
-  console.log(import_chalk13.default.bold.cyan("=== Tazz CLI Tool ==="));
-  console.log(import_chalk13.default.gray("   AI-Powered Development Orchestrator"));
+  console.log(import_chalk14.default.cyan(TAZZ_LOGO));
+  console.log(import_chalk14.default.bold.cyan("=== Tazz CLI Tool ==="));
+  console.log(import_chalk14.default.gray("   AI-Powered Development Orchestrator"));
   console.log("");
 }
 if (require.main === module) {

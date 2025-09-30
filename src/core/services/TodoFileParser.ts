@@ -133,7 +133,69 @@ export class TodoFileParser {
         continue
       }
 
-      // Check for task items
+      // Check for new simplified format first: TaskName: Description
+      const simplifiedTaskMatch = line.match(/^[\s]*TaskName:\s*(.+)$/i)
+      if (simplifiedTaskMatch) {
+        const taskName = simplifiedTaskMatch[1].trim()
+        
+        // Parse the following lines for SessionName and Description
+        const simplifiedDetails = this.parseSimplifiedTaskDetails(lines, i + 1)
+        
+        // Validate required fields for simplified format
+        if (!simplifiedDetails.sessionName || !simplifiedDetails.description) {
+          this.logger.warn('Incomplete simplified task found - missing SessionName or Description', {
+            taskName,
+            lineNumber,
+            hasSessionName: !!simplifiedDetails.sessionName,
+            hasDescription: !!simplifiedDetails.description
+          })
+          
+          // Skip to next line and continue parsing
+          i += Math.max(1, simplifiedDetails.linesProcessed)
+          continue
+        }
+
+        // Validate SessionName format (simple alphanumeric with hyphens)
+        if (!/^[a-z0-9-]+$/i.test(simplifiedDetails.sessionName)) {
+          this.logger.warn('Invalid session name format - using sanitized version', {
+            original: simplifiedDetails.sessionName,
+            sanitized: this.sanitizeSessionName(simplifiedDetails.sessionName),
+            lineNumber
+          })
+          simplifiedDetails.sessionName = this.sanitizeSessionName(simplifiedDetails.sessionName)
+        }
+
+        const task: ParsedTask = {
+          id: this.generateTaskId(taskName, lineNumber),
+          name: taskName,
+          description: simplifiedDetails.description,
+          sessionName: simplifiedDetails.sessionName,
+          section: currentSection,
+          priority: this.determinePriority(taskName, simplifiedDetails),
+          status: this.determineStatus(currentSection),
+          context: {
+            fullDescription: this.buildSimplifiedFullDescription(taskName, simplifiedDetails),
+            technicalDetails: simplifiedDetails.technicalDetails,
+            dependencies: simplifiedDetails.dependencies,
+            acceptanceCriteria: simplifiedDetails.acceptanceCriteria,
+            notes: simplifiedDetails.notes
+          },
+          metadata: {
+            lineNumber,
+            rawText: line,
+            estimatedTime: simplifiedDetails.estimatedTime,
+            tags: this.extractTags(taskName)
+          }
+        }
+
+        tasks.push(task)
+        
+        // Skip processed lines
+        i += simplifiedDetails.linesProcessed
+        continue
+      }
+
+      // Check for legacy checkbox format
       const taskMatch = line.match(/^[\s]*-\s*\[\s*([x\s])\s*\]\s*(.+)$/)
       if (taskMatch) {
         const isCompleted = taskMatch[1].toLowerCase() === 'x'
@@ -154,7 +216,7 @@ export class TodoFileParser {
           priority: this.determinePriority(taskContent, taskDetails),
           status: isCompleted ? TaskStatus.COMPLETED : this.determineStatus(currentSection),
           context: {
-            fullDescription: this.buildFullDescription(name, description, taskDetails),
+            fullDescription: this.buildFullDescription(name, description || '', taskDetails),
             technicalDetails: taskDetails.technicalDetails,
             dependencies: taskDetails.dependencies,
             acceptanceCriteria: taskDetails.acceptanceCriteria,
@@ -191,7 +253,94 @@ export class TodoFileParser {
   }
 
   /**
-   * Parse additional task details from subsequent lines
+   * Parse simplified task format details from subsequent lines
+   * Expects: SessionName: value and Description: value
+   */
+  private parseSimplifiedTaskDetails(lines: string[], startIndex: number): {
+    sessionName: string
+    description: string
+    technicalDetails?: string
+    dependencies?: string[]
+    acceptanceCriteria?: string[]
+    notes?: string[]
+    estimatedTime?: string
+    linesProcessed: number
+  } {
+    let sessionName = ''
+    let description = ''
+    let technicalDetails = ''
+    let dependencies: string[] = []
+    let acceptanceCriteria: string[] = []
+    let notes: string[] = []
+    let estimatedTime = ''
+    let linesProcessed = 0
+
+    let i = startIndex
+
+    // Look for SessionName and Description on the next lines
+    while (i < lines.length && linesProcessed < 10) { // Limit search to reasonable range
+      const line = lines[i].trim()
+      linesProcessed++
+
+      // Stop if we hit another task or section
+      if (line.match(/^TaskName:/i) || line.match(/^[\s]*-\s*\[/) || line.match(/^#+/)) {
+        linesProcessed-- // Don't count this line
+        break
+      }
+
+      // Parse specific fields
+      const sessionMatch = line.match(/^SessionName:\s*(.+)/i)
+      const descMatch = line.match(/^Description:\s*(.*)$/i)
+      const techMatch = line.match(/^Technical:\s*(.*)$/i)
+      const depMatch = line.match(/^Dependencies:\s*(.*)$/i)
+      const accMatch = line.match(/^Acceptance:\s*(.*)$/i)
+      const noteMatch = line.match(/^Notes:\s*(.*)$/i)
+      const timeMatch = line.match(/^Time:\s*(.+)/i)
+
+      if (sessionMatch) {
+        sessionName = sessionMatch[1].trim()
+      } else if (descMatch) {
+        description = descMatch[1].trim()
+      } else if (techMatch) {
+        technicalDetails = techMatch[1].trim()
+      } else if (depMatch) {
+        const depLine = depMatch[1].trim()
+        if (depLine) dependencies.push(depLine)
+      } else if (accMatch) {
+        const criteriaLine = accMatch[1].trim()
+        if (criteriaLine) acceptanceCriteria.push(criteriaLine)
+      } else if (noteMatch) {
+        const noteLine = noteMatch[1].trim()
+        if (noteLine) notes.push(noteLine)
+      } else if (timeMatch) {
+        estimatedTime = timeMatch[1].trim()
+      } else if (line === '') {
+        // Empty line, continue
+      } else {
+        // If we have both required fields, stop processing
+        if (sessionName && description) {
+          linesProcessed-- // Don't count this line
+          break
+        }
+      }
+
+      i++
+    }
+
+    return {
+      sessionName,
+      description,
+      technicalDetails: technicalDetails || undefined,
+      dependencies: dependencies.length ? dependencies : undefined,
+      acceptanceCriteria: acceptanceCriteria.length ? acceptanceCriteria : undefined,
+      notes: notes.length ? notes : undefined,
+      estimatedTime: estimatedTime || undefined,
+      linesProcessed
+    }
+  }
+
+  /**
+   * Parse additional task details from subsequent lines (legacy format)
    */
   private parseTaskDetails(lines: string[], startIndex: number): {
     sessionName: string
@@ -315,6 +464,32 @@ export class TodoFileParser {
     }
 
     return { name: taskContent }
+  }
+
+  private buildSimplifiedFullDescription(name: string, details: any): string {
+    let fullDesc = `Task: ${name}\n`
+    
+    if (details.description) {
+      fullDesc += `Description: ${details.description}\n`
+    }
+    
+    if (details.technicalDetails) {
+      fullDesc += `Technical Details: ${details.technicalDetails}\n`
+    }
+    
+    if (details.dependencies?.length) {
+      fullDesc += `Dependencies: ${details.dependencies.join(', ')}\n`
+    }
+    
+    if (details.acceptanceCriteria?.length) {
+      fullDesc += `Acceptance Criteria:\n${details.acceptanceCriteria.map((c: string) => `- ${c}`).join('\n')}\n`
+    }
+    
+    if (details.notes?.length) {
+      fullDesc += `Notes:\n${details.notes.map((n: string) => `- ${n}`).join('\n')}\n`
+    }
+
+    return fullDesc.trim()
   }
 
   private buildFullDescription(name: string, description: string, details: any): string {

@@ -147,42 +147,39 @@ As a [user type], I want [functionality] so that [benefit]...
 `
 
       default: // 'task'
-        return `# Tazz Task Template
+        return `# Tazz Development Tasks
 
 ## Session Tasks
-- [ ] Task 1: Complete implementation
-      Session name: task-1
-      Description: 
-        Implement the main functionality for this feature. This context will be passed to the Claude instance in the tmux session.
 
-- [ ] Task 2: Write tests
-      Session name: task-2
-      Description: 
-        Create comprehensive tests for the implemented functionality. Focus on unit tests and integration tests.
+TaskName: Feature Implementation
+SessionName: feat-impl
+Description: Implement the main functionality for this feature. This context will be passed to the Claude instance in the tmux session.
 
-- [ ] Task 3: Update documentation
-      Session name: task-3
-      Description: 
-        Update relevant documentation including README, API docs, and inline comments.
+TaskName: Write Tests
+SessionName: write-tests
+Description: Create comprehensive tests for the implemented functionality. Focus on unit tests and integration tests.
 
-- [ ] Task 4: Code review preparation
-      Session name: task-4
-      Description: 
-        Prepare code for review, run linting, fix any issues, and ensure quality standards are met.
+TaskName: Update Documentation
+SessionName: update-docs
+Description: Update relevant documentation including README, API docs, and inline comments.
+
+TaskName: Code Review Preparation
+SessionName: code-review
+Description: Prepare code for review, run linting, fix any issues, and ensure quality standards are met.
 
 ## In Progress
-- [ ] Current task being worked on...
-      Session name: current-task
-      Description: 
-        Description of what is currently being implemented or debugged.
+
+TaskName: Current Implementation Task
+SessionName: current-work
+Description: Description of what is currently being implemented or debugged.
 
 ## Blocked
-- [ ] Task waiting for dependency
-      Session name: blocked-task
-      Description: 
-        Describe what is blocking this task and what needs to be resolved.
 
-## Quality Checklist
+TaskName: Waiting for Dependencies
+SessionName: blocked-task
+Description: Describe what is blocking this task and what needs to be resolved.
+
+## Quality Checklist (Legacy Format)
 - [ ] Code follows project patterns
 - [ ] Tests pass locally
 - [ ] Coverage meets threshold
@@ -194,17 +191,20 @@ Add notes about current session, decisions made, next steps...
 
 ## Quick Commands
 \`\`\`bash
-# Run all tasks (creates separate tmux sessions)
-tazz run instance-name
+# Start all tasks (creates separate tmux sessions)
+tazz run
 
 # Join specific task session
-tazz join instance-name task-1
+tazz join feat-impl
 
 # List all active sessions
 tazz list
 
-# Join main instance session
-tazz join instance-name
+# Complete a session and clean up
+tazz done feat-impl
+
+# Complete all sessions
+tazz done --all
 \`\`\`
 `
     }
